@@ -5,3 +5,61 @@ Java-based application designed for video capture and beam control for the BL831
 The application features a main frame interface with video widgets for displaying camera feeds, crystal centering controls, and beam control functionality. It supports multiple video source types including Axis cameras and Video 4 Linux capture devices, with support for MJPEG streaming and touch emulation capabilities. The system includes components for persistent socket connections, virtual buttons, and crystal alignment controls to facilitate precise beam positioning and sample analysis.
 
 The software integrates with Java Media Framework (JMF) for media handling and uses custom libraries for network camera communication and image processing. It provides a comprehensive solution for laboratory video monitoring and beam control operations.
+
+## Build Requirements
+
+- Java Development Kit (JDK) 8 or higher
+- Maven 3.6 or higher
+- Java Media Framework (JMF) 2.1.1e
+- Linux system with X11 support (for touchscreen emulation)
+- Camera hardware (Axis cameras or V4L2 capture devices)
+- Network connectivity for remote camera access
+
+### Prerequisites Installation
+
+#### Ubuntu Systems:
+1. Install JDK 8 or higher:
+   ```bash
+   sudo apt-get install openjdk-8-jdk
+   ```
+
+2. Install Maven:
+   ```bash
+   sudo apt-get install maven
+   ```
+
+#### Rocky Linux Systems:
+1. Install JDK 8 or higher:
+   ```bash
+   sudo dnf install java-1.8.0-openjdk-devel
+   ```
+
+2. Install Maven:
+   ```bash
+   sudo dnf install maven
+   ```
+
+## Build Instructions
+### Building the Application
+
+1. Clone or download the repository
+2. Navigate to the project root directory
+3. Compile the project using Maven:
+   ```bash
+   mvn clean install
+   ```
+5. The built JAR file will be located in the `target` directory
+
+
+### Configuration
+
+The application uses configuration files located in the `etc/` directory:
+- `11-evtouch-elo.conf` - Touchscreen configuration
+- Additional configuration files may be required based on your specific hardware setup
+
+### Hardware Requirements
+
+- Touchscreen display (for user interaction)
+- Network cameras (Axis or similar)
+- V4L2 compatible video capture device (optional)
+- Stable network connection for camera streaming
