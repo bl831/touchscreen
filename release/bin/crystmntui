@@ -1,0 +1,5 @@
+#!/bin/sh
+PROGPATH=`dirname $0`
+CRYSTHOME=`( cd $PROGPATH/.. && /bin/pwd )`
+$CRYSTHOME/bin/dov4l2 -m NTSC -s 640,480
+LD_LIBRARY_PATH=$CRYSTHOME/JMF-2.1.1e/lib java -cp $CRYSTHOME/JMF-2.1.1e/lib/jmf.jar:$CRYSTHOME/lib/crystmntui-1.0.3.jar gov.lbl.als.bl831.MainFrame -v -d dcss -r 14000 -i bilinear

@@ -1,1 +1,7 @@
-touchscreen-based crystal centering system
+# BL831 Touchscreen-based Crystal Centering System
+
+Java-based application designed for video capture and beam control for the BL831 beamline at the Advanced Light Source (ALS) at Lawrence Berkeley National Laboratory. The system provides a graphical interface for controlling video sources, managing camera operations, and performing beam alignment tasks.
+
+The application features a main frame interface with video widgets for displaying camera feeds, crystal centering controls, and beam control functionality. It supports multiple video source types including Axis cameras and Video 4 Linux capture devices, with support for MJPEG streaming and touch emulation capabilities. The system includes components for persistent socket connections, virtual buttons, and crystal alignment controls to facilitate precise beam positioning and sample analysis.
+
+The software integrates with Java Media Framework (JMF) for media handling and uses custom libraries for network camera communication and image processing. It provides a comprehensive solution for laboratory video monitoring and beam control operations.

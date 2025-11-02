@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# Setup the touch screen
+#
+PROGPATH=`dirname $0`
+CRYSTHOME=`( cd $PROGPATH/.. && /bin/pwd )`
+apt-get install -y xserver-xorg-input-evtouch
+cp $CRYSTHOME/etc/11-evtouch-elo.conf /usr/lib/X11/xorg.conf.d/
+
