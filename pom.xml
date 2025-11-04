@@ -8,33 +8,34 @@
 
     <groupId>gov.lbl.als.bl831</groupId>
     <artifactId>crystmntui</artifactId>
-    <version>1.0.3</version>
+    <version>2.0.1</version>
     <packaging>jar</packaging>
 
     <name>Crystal Mount UI</name>
     <description>UI for the BL831 crystal mount control system</description>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Base name for the normal JAR (not used in final dist) -->
         <main.jar.finalName>${project.artifactId}-${project.version}</main.jar.finalName>
     </properties>
 
     <dependencies>
-        <!-- JMF is provided at runtime, not compiled against -->
-        <dependency>
-            <groupId>javax.media</groupId>
-            <artifactId>jmf</artifactId>
-            <version>2.1.1e</version>
-            <scope>provided</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <!-- This controls the name of the *main* JAR (the thin one) -->
         <finalName>${main.jar.finalName}</finalName>
+        
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
         <plugins>
 
             <!-- Compile Java sources -->
@@ -43,8 +44,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
 

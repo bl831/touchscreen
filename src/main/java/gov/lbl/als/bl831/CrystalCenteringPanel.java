@@ -15,6 +15,8 @@ import javax.swing.JPanel;
 
 public class CrystalCenteringPanel extends JPanel {
 
+    private static final String ICONS = "/icons/";
+
     private static final int BUTTON_WIDTH        = 95;
     private static final int BUTTON_HEIGHT       = 60;
     private static final int LIGHT_BUTTON_WIDTH  = 95;
@@ -125,7 +127,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getLightSliderButton() {
         if (mLightSliderButton == null) {
             mLightSliderButton = new JButton(new ImageIcon(getClass().getResource(
-                    "/resource/light.png")));
+                    ICONS + "light.png")));
             mLightSliderButton.addMouseListener(new MouseAdapter() {
 
                 @Override
@@ -168,7 +170,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin24Button() {
         if (mPin24Button == null) {
             mPin24Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/24.png")));
+                    .getResource(ICONS +"24.png")));
             mPin24Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -184,7 +186,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin21Button() {
         if (mPin21Button == null) {
             mPin21Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/21.png")));
+                    .getResource(ICONS + "21.png")));
             mPin21Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -200,7 +202,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin20Button() {
         if (mPin20Button == null) {
             mPin20Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/20.png")));
+                    .getResource(ICONS + "20.png")));
             mPin20Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -216,7 +218,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin18Button() {
         if (mPin18Button == null) {
             mPin18Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/18.png")));
+                    .getResource(ICONS + "18.png")));
             mPin18Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -232,7 +234,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin14Button() {
         if (mPin14Button == null) {
             mPin14Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/14.png")));
+                    .getResource(ICONS + "14.png")));
             mPin14Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -248,7 +250,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin12Button() {
         if (mPin12Button == null) {
             mPin12Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/12.png")));
+                    .getResource(ICONS + "12.png")));
             mPin12Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -264,7 +266,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getPin10Button() {
         if (mPin10Button == null) {
             mPin10Button = new JButton(new ImageIcon(getClass()
-                    .getResource("/resource/10.png")));
+                    .getResource(ICONS + "10.png")));
             mPin10Button.addActionListener(new ActionListener() {
 
                 @Override
@@ -365,7 +367,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getForwardButton() {
         if (mForwardButton == null) {
             mForwardButton = new JButton(new ImageIcon(getClass().getResource(
-                    "/resource/forward.png")));
+                    ICONS + "forward.png")));
             mForwardButton.addActionListener(new ActionListener() {
 
                 @Override
@@ -381,7 +383,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getBackwardButton() {
         if (mBackwardButton == null) {
             mBackwardButton = new JButton(new ImageIcon(getClass().getResource(
-                    "/resource/backward.png")));
+                    ICONS + "backward.png")));
             mBackwardButton.addActionListener(new ActionListener() {
 
                 @Override
@@ -494,7 +496,7 @@ public class CrystalCenteringPanel extends JPanel {
 
     private JButton getUpButton() {
         if (mUpButton == null) {
-            mUpButton = new JButton(new ImageIcon(getClass().getResource("/resource/up.png")));
+            mUpButton = new JButton(new ImageIcon(getClass().getResource(ICONS + "up.png")));
             mUpButton.addActionListener(new ActionListener() {
 
                 @Override
@@ -510,7 +512,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getLeftButton() {
         if (mLeftButton == null) {
             mLeftButton = new JButton(new ImageIcon(getClass().getResource(
-                    "/resource/left.png")));
+                    ICONS + "left.png")));
             mLeftButton.addActionListener(new ActionListener() {
 
                 @Override
@@ -526,7 +528,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getRightButton() {
         if (mRightButton == null) {
             mRightButton = new JButton(new ImageIcon(getClass().getResource(
-                    "/resource/right.png")));
+                    ICONS + "right.png")));
             mRightButton.addActionListener(new ActionListener() {
 
                 @Override
@@ -542,7 +544,7 @@ public class CrystalCenteringPanel extends JPanel {
     private JButton getDownButton() {
         if (mDownButton == null) {
             mDownButton = new JButton(new ImageIcon(getClass().getResource(
-                    "/resource/down.png")));
+                    ICONS + "down.png")));
             mDownButton.addActionListener(new ActionListener() {
 
                 @Override

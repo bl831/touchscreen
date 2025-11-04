@@ -31,17 +31,6 @@
             </includes>
         </fileSet>
 
-        <!-- JMF distribution (unpacked) -->
-        <fileSet>
-            <directory>${project.basedir}/src/main/distribution/JMF-2.1.1e</directory>
-            <outputDirectory>JMF-2.1.1e</outputDirectory>
-            <includes>
-                <include>**/*</include>
-            </includes>
-            <fileMode>0644</fileMode>
-            <directoryMode>0755</directoryMode>
-        </fileSet>
-
         <!-- utils/bin scripts (make them executable) -->
         <fileSet>
             <directory>${project.basedir}/src/main/distribution/utils/bin</directory>

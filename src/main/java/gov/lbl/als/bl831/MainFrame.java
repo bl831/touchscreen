@@ -132,7 +132,7 @@ public class MainFrame extends JFrame {
      */
     private static VideoSource configCamera(Config config) throws CameraException {
         if (config.isVideoCapture()) {
-            return new CaptureVideoSource(config);
+            return new SimulateVideoSource(config);
         }
         return new AxisVideoSource(config);
     }

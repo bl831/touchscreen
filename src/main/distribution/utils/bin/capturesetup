@@ -4,5 +4,4 @@ CRYSTHOME=`( cd $PROGPATH/.. && /bin/pwd )`
 
 apt-get install -y sun-java6-jre
 $CRYSTHOME/bin/dov4l2 -s 640,480 -m NTSC
-$CRYSTHOME/JMF-2.1.1e/bin/jmfinit
 
