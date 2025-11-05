@@ -11,8 +11,8 @@
     <version>2.0.1</version>
     <packaging>jar</packaging>
 
-    <name>Crystal Mount UI</name>
-    <description>UI for the BL831 crystal mount control system</description>
+    <name>crystmntui</name>
+    <description>Crystal Mounting Control System UI</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -23,6 +23,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>4.7.7</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -49,6 +54,44 @@
                 </configuration>
             </plugin>
 
+            <!-- Add main class to manifest-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>gov.lbl.als.bl831.MainFrame</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            
+            <!-- Shade Plugin: creates the uber JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>uber</shadedClassifierName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>gov.lbl.als.bl831.MainFrame</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            
             <!-- Assembly Plugin: creates distribution zip -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

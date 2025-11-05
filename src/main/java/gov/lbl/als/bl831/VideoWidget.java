@@ -178,7 +178,9 @@ public class VideoWidget extends JPanel {
     public void setImage(Image newImage) {
         Image oldImage = mCurrentImage;
         mCurrentImage = newImage;
-        oldImage.flush();
+        if (oldImage != null) {
+            oldImage.flush();
+        }
         repaint();
     }
 

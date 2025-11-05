@@ -1,5 +1,6 @@
-# Compiled class file
+# Maven
 target/
+dependency-reduced-pom.xml
 
 #VSCode
 .vscode/

@@ -1,7 +1,6 @@
 package gov.lbl.als.bl831;
 
 import java.awt.BorderLayout;
-import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -13,6 +12,9 @@ import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
+import picocli.CommandLine;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
 import willibert.NetCamLib.CameraException;
 
 public class MainFrame extends JFrame {
@@ -73,7 +75,22 @@ public class MainFrame extends JFrame {
      * the designer. You can modify it as you like.
      */
     public static void main(String[] args) {
-        final Config config = parseArgs(args);
+
+        CommandLineArgs cla = new CommandLineArgs();
+        try {
+            CommandLine cl = new CommandLine(cla);
+            ParseResult parseResult = cl.parseArgs(args);
+            if (CommandLine.printHelpIfRequested(parseResult)) {
+                System.exit(0);
+            };
+        } catch (ParameterException ex) {
+            System.err.println(ex.getMessage());
+            ex.getCommandLine().usage(System.err);
+            System.exit(1);
+        }
+
+        final Config config = convertCla(cla);
+
         try {
             final VideoSource videoSource = configCamera(config);
             PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
@@ -144,74 +161,9 @@ public class MainFrame extends JFrame {
      * @param args
      *        the command line arguments as they were passed into main.
      */
-    private static Config parseArgs(String[] args) {
-        String hostname = "axis";
-        String port = "80";
-        String camera = "4";
-        String dcsshostname = "dcss";
-        String dcssport = "14000";
-        boolean videoCapture = false;
-        boolean emulate = false;
-        Object interpHint = null;
-        float framesPerSecond = (float) 24.0;
-
-        for (int index = 0; index < args.length; index++) {
-            if (args[index].equals("-h")) {
-                hostname = args[++index];
-            } else if (args[index].equals("-p")) {
-                port = args[++index];
-            } else if (args[index].equals("-c")) {
-                camera = args[++index];
-            } else if (args[index].equals("-d")) {
-                dcsshostname = args[++index];
-            } else if (args[index].equals("-r")) {
-                dcssport = args[++index];
-            } else if (args[index].equals("-v")) {
-                videoCapture = true;
-            } else if (args[index].equals("-e")) {
-                emulate = true;
-            } else if (args[index].equals("-f")) {
-                try {
-                    framesPerSecond = Float.parseFloat(args[++index]);
-                } catch (NumberFormatException ignore) {
-                    // Ignore;
-                }
-            } else if (args[index].equals("-i")) {
-                String s = args[++index];
-                if ("nearest".equalsIgnoreCase(s)) {
-                    interpHint = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
-                } else if ("bilinear".equalsIgnoreCase(s)) {
-                    interpHint = RenderingHints.VALUE_INTERPOLATION_BILINEAR;
-                } else if ("bicubic".equalsIgnoreCase(s)) {
-                    interpHint = RenderingHints.VALUE_INTERPOLATION_BICUBIC;
-                }
-            } else {
-                System.err.printf("Unknown option: %s\n", args[index]);
-                System.err.println("Valid options:");
-                System.err
-                        .println("   -h hostname        the Axis server name. (defaults to localhost)");
-                System.err
-                        .println("   -p port            the Axis server port. (defaults to 80)");
-                System.err
-                        .println("   -d dcsshostname    the DCSS touch server name. (defaults to dcss)");
-                System.err
-                        .println("   -r dcssport        the DCSS touch server port. (defaults to 14000)");
-                System.err
-                        .println("   -c camera          the camera stream number to display. (defaults to 4)");
-                System.err
-                        .println("   -v                 causes the internal video capture system to be used.");
-                System.err
-                        .println("   -e                 emulate old-style touch coordinates for output.");
-                System.err
-                        .println("   -i hint            image interpolation. (can be 'nearest', 'bilinear', or 'bicubic').");
-                System.err
-                        .println("   -f frames per sec  capture device frame rate. (can be 15.0, 24.0, or 30.0).");
-
-                System.exit(1);
-            }
-        }
-
-        return new Config(dcsshostname, dcssport, hostname, port, camera, videoCapture,
-                emulate, interpHint, framesPerSecond);
+    private static Config convertCla(CommandLineArgs args) {
+        return new Config(args.getDcsshostname(), args.getDcssport(), args.getHostname(), args.getPort(),
+                args.getCamera(), args.isVideoCapture(),
+                args.isEmulate(), args.getInterpolation(), args.getFramesPerSecond());
     }
 }

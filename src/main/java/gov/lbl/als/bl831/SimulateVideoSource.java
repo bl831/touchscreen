@@ -6,7 +6,6 @@ import java.awt.Toolkit;
 import java.awt.event.ActionListener;
 import java.awt.image.DirectColorModel;
 import java.awt.image.MemoryImageSource;
-import java.util.Random;
 
 import javax.swing.SwingUtilities;
 
@@ -24,9 +23,6 @@ public class SimulateVideoSource implements VideoSource {
     // Simple video capture thread
     private VideoCaptureThread              mCaptureThread;
     private volatile boolean                mIsRunning = false;
-    
-    // Random number generator for wave pattern movement
-    private final Random                    mRandom = new Random();
     
     // Simple video capture thread
     private class VideoCaptureThread extends Thread {
