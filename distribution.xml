@@ -27,7 +27,7 @@
             <directory>${project.build.directory}</directory>
             <outputDirectory>lib</outputDirectory>
             <includes>
-                <include>${project.artifactId}-${project.version}.jar</include>
+                <include>*.jar</include>
             </includes>
         </fileSet>
 

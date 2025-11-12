@@ -8,9 +8,8 @@ The software integrates with Java Media Framework (JMF) for media handling and u
 
 ## Build Requirements
 
-- Java Development Kit (JDK) 8 or higher
+- Java Development Kit (JDK) 11 or higher
 - Maven 3.6 or higher
-- Java Media Framework (JMF) 2.1.1e
 - Linux system with X11 support (for touchscreen emulation)
 - Camera hardware (Axis cameras or V4L2 capture devices)
 - Network connectivity for remote camera access
@@ -18,9 +17,9 @@ The software integrates with Java Media Framework (JMF) for media handling and u
 ### Prerequisites Installation
 
 #### Ubuntu Systems:
-1. Install JDK 8 or higher:
+1. Install JDK 11 or higher:
    ```bash
-   sudo apt-get install openjdk-8-jdk
+   sudo apt-get install openjdk-11-jdk
    ```
 
 2. Install Maven:
@@ -29,9 +28,9 @@ The software integrates with Java Media Framework (JMF) for media handling and u
    ```
 
 #### Rocky Linux Systems:
-1. Install JDK 8 or higher:
+1. Install JDK 11 or higher:
    ```bash
-   sudo dnf install java-1.8.0-openjdk-devel
+   sudo dnf install java-1.11.0-openjdk-devel
    ```
 
 2. Install Maven:
