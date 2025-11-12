@@ -4,8 +4,12 @@ import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import javax.swing.AbstractAction;
 import javax.swing.JFrame;
@@ -84,13 +88,21 @@ public class MainFrame extends JFrame {
                 System.exit(0);
             };
         } catch (ParameterException ex) {
-            System.err.println(ex.getMessage());
+            System.err.println(ex.getMessage() + System.lineSeparator());
             ex.getCommandLine().usage(System.err);
             System.exit(1);
         }
 
         final Config config = convertCla(cla);
 
+        if (cla.getVideoCaptureListUris()) {
+            try {
+                listAllV4L2Uris();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.exit(0);
+        }
         try {
             final VideoSource videoSource = configCamera(config);
             PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
@@ -162,8 +174,25 @@ public class MainFrame extends JFrame {
      *        the command line arguments as they were passed into main.
      */
     private static Config convertCla(CommandLineArgs args) {
-        return new Config(args.getDcsshostname(), args.getDcssport(), args.getHostname(), args.getPort(),
-                args.getCamera(), args.isVideoCapture(),
-                args.isEmulate(), args.getInterpolation(), args.getFramesPerSecond());
+        return new Config(args.getDcsshostname(), Integer.toString(args.getDcssport()), args.getHostname(), Integer.toString(args.getPort()),
+                Integer.toString(args.getCamera()), !args.getVideoCaptureUri().isEmpty(),
+                args.getEmulate(), args.getInterpolation(), args.getFramesPerSecond());
+    }
+
+    private static void listAllV4L2Uris() throws IOException {
+
+        List<String> uris = new ArrayList<>();
+        
+        CameraEnumerator ce = new CameraEnumerator();        
+        Collection<String> devices = ce.getVideoDevices();
+        for (String device : devices) {
+            uris.addAll(ce.getV4L2Uris(device));
+        }
+
+        if (uris.isEmpty()) {
+            System.out.println("There are no available video capture devices");
+        } else {
+            uris.forEach(u -> System.out.println(u));
+        }
     }
 }
