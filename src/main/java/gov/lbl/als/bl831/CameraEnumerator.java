@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 
-
 /**
  * Utility class to enumerate and list all available webcams on the local machine
  * using the Sarxos webcam-capture library.
@@ -65,5 +64,4 @@ public class CameraEnumerator {
         int lastSlashIndex = path.lastIndexOf('/');
         return path.substring(lastSlashIndex + 1);
     }
-
 }

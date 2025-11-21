@@ -17,6 +17,7 @@ dependency-reduced-pom.xml
 
 # Package Files #
 *.jar
+!lib/*.jar
 *.war
 *.nar
 *.ear

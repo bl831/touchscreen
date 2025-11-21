@@ -1,4 +1,4 @@
-package gov.lbl.als.bl831;
+package gov.lbl.als.bl831.video;
 
 import java.awt.Dimension;
 import java.awt.Image;
@@ -8,6 +8,9 @@ import java.awt.image.DirectColorModel;
 import java.awt.image.MemoryImageSource;
 
 import javax.swing.SwingUtilities;
+
+import gov.lbl.als.bl831.Config;
+import gov.lbl.als.bl831.VideoSource;
 
 public class SimulateVideoSource implements VideoSource {
     

@@ -16,6 +16,9 @@ import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
+import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
+import gov.lbl.als.bl831.video.AxisVideoSource;
+import gov.lbl.als.bl831.video.FFmpegVideoSource;
 import picocli.CommandLine;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
@@ -36,7 +39,12 @@ public class MainFrame extends JFrame {
                 videoWidget.setImage(videoSource.getImage());
             }
         });
-        videoSource.start();
+
+        try {
+            videoSource.start();
+        } catch (IOException ex) {
+            System.err.println("Error starting video service. " + ex.getMessage());
+        }
 
         //
         // Start the circle listener
@@ -103,8 +111,9 @@ public class MainFrame extends JFrame {
             }
             System.exit(0);
         }
+
         try {
-            final VideoSource videoSource = configCamera(config);
+            final VideoSource videoSource = configCamera(cla);
             PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
                     config.getDcssHostname(), config.getDcssPort()), 2000);
             final ClickSink clickSink = new EmulateTouch(socket.getOutputStream(),
@@ -159,11 +168,17 @@ public class MainFrame extends JFrame {
      * @return
      * @throws CameraException
      */
-    private static VideoSource configCamera(Config config) throws CameraException {
-        if (config.isVideoCapture()) {
-            return new SimulateVideoSource(config);
+    private static VideoSource configCamera(CommandLineArgs cla) throws CameraException {
+        if (!cla.getVideoCaptureUri().isEmpty()) {
+            try {
+                // return new SimulateVideoSource(config);
+                V4L2UriComponents c = V4L2UriParser.parseUri(cla.getVideoCaptureUri());
+                return new FFmpegVideoSource("/dev/" + c.getDevice(), c.getPixelFormat(), c.getWidth(), c.getHeight(), (int)c.getFps());
+            } catch (IllegalArgumentException ex) {
+                throw new CameraException ("'" + cla.getVideoCaptureUri() + "' could not be created. " + ex.getMessage());
+            }   
         }
-        return new AxisVideoSource(config);
+        return new AxisVideoSource(cla);
     }
 
     /**
