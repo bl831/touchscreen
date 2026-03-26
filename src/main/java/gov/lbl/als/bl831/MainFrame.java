@@ -1,12 +1,16 @@
 package gov.lbl.als.bl831;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Image;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -19,6 +23,7 @@ import javax.swing.SwingUtilities;
 import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
 import gov.lbl.als.bl831.video.AxisVideoSource;
 import gov.lbl.als.bl831.video.FFmpegVideoSource;
+import gov.lbl.als.bl831.video.SimulateVideoSource;
 import picocli.CommandLine;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
@@ -58,17 +63,21 @@ public class MainFrame extends JFrame {
         CrystalCenteringPanel crystalCenteringPanel = getCrystalCenteringPanel(clickSink,
                 config);
         add(crystalCenteringPanel, BorderLayout.CENTER);
-        setSize(1680, 1050);
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        setSize(screenSize.width, screenSize.height);
         setUndecorated(true);
-        crystalCenteringPanel.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                "exit");
-        crystalCenteringPanel.getActionMap().put("exit", new AbstractAction() {
 
+        AbstractAction exitAction = new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 System.exit(0);
             }
-        });
+        };
+        crystalCenteringPanel.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                "exit");
+        crystalCenteringPanel.getInputMap().put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK), "exit");
+        crystalCenteringPanel.getActionMap().put("exit", exitAction);
 
         return crystalCenteringPanel.getVideoWidget();
     }
@@ -114,11 +123,19 @@ public class MainFrame extends JFrame {
 
         try {
             final VideoSource videoSource = configCamera(cla);
-            PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
-                    config.getDcssHostname(), config.getDcssPort()), 2000);
-            final ClickSink clickSink = new EmulateTouch(socket.getOutputStream(),
-                    config.isEmulate());
-            final InputStream inputStream = socket.getInputStream();
+            final ClickSink clickSink;
+            final InputStream inputStream;
+
+            if (cla.getSimulate()) {
+                clickSink = createNoOpClickSink();
+                inputStream = null;
+            } else {
+                PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
+                        config.getDcssHostname(), config.getDcssPort()), 2000);
+                clickSink = new EmulateTouch(socket.getOutputStream(),
+                        config.isEmulate());
+                inputStream = socket.getInputStream();
+            }
 
             SwingUtilities.invokeLater(new Runnable() {
 
@@ -132,6 +149,9 @@ public class MainFrame extends JFrame {
                     frame.pack();
                     frame.setLocationRelativeTo(null);
                     frame.setVisible(true);
+                    if (cla.getSimulate()) {
+                        setupSimulatedBeam(frame, videoSource);
+                    }
                 }
             });
 
@@ -162,6 +182,54 @@ public class MainFrame extends JFrame {
     }
 
     /**
+     * Creates a no-op ClickSink that discards all events. Used in simulate
+     * mode when there is no DCSS connection.
+     */
+    private static ClickSink createNoOpClickSink() {
+        return new ClickSink() {
+            @Override public void buttonPressed(VirtualButton button) {}
+            @Override public void lightSlideClicked(double value) {}
+            @Override public void videoClicked(double x, double y, double heightOverWidth) {}
+            @Override public void heartbeat() {}
+        };
+    }
+
+    /**
+     * Sets up a simulated beam overlay. Waits for the first video frame on a
+     * background thread to get the source dimensions, then draws a small
+     * circle centered on the video.
+     */
+    private static void setupSimulatedBeam(MainFrame frame, VideoSource videoSource) {
+        new Thread(() -> {
+            try {
+                Image img = null;
+                for (int i = 0; i < 50; i++) {
+                    img = videoSource.getImage();
+                    if (img != null && img.getWidth(null) > 0) break;
+                    Thread.sleep(100);
+                }
+                final double srcWidth = (img != null && img.getWidth(null) > 0)
+                        ? img.getWidth(null) : 704.0;
+                final double srcHeight = (img != null && img.getHeight(null) > 0)
+                        ? img.getHeight(null) : 480.0;
+                double radius = 0.05;
+                double beamW = radius * srcHeight / srcWidth;
+                VideoWidget vw = frame.mCrystalCenteringPanel.getVideoWidget();
+                System.out.printf("VideoWidget: %dx%d, source: %.0fx%.0f, beamW=%.4f, beamH=%.4f%n",
+                        vw.getSize().width, vw.getSize().height,
+                        srcWidth, srcHeight, beamW, radius);
+                SwingUtilities.invokeLater(() -> {
+                    vw.setShape("ellipse");
+                    vw.setSize(beamW, radius);
+                    vw.setCircle(0.5, 0.5);
+                });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "SimBeamSetup").start();
+    }
+
+    /**
      * Creates the appropriate video source for video display.
      * 
      * @param config
@@ -169,14 +237,16 @@ public class MainFrame extends JFrame {
      * @throws CameraException
      */
     private static VideoSource configCamera(CommandLineArgs cla) throws CameraException {
+        if (cla.getSimulate()) {
+            return new SimulateVideoSource(convertCla(cla));
+        }
         if (!cla.getVideoCaptureUri().isEmpty()) {
             try {
-                // return new SimulateVideoSource(config);
                 V4L2UriComponents c = V4L2UriParser.parseUri(cla.getVideoCaptureUri());
                 return new FFmpegVideoSource("/dev/" + c.getDevice(), c.getPixelFormat(), c.getWidth(), c.getHeight(), (int)c.getFps());
             } catch (IllegalArgumentException ex) {
                 throw new CameraException ("'" + cla.getVideoCaptureUri() + "' could not be created. " + ex.getMessage());
-            }   
+            }
         }
         return new AxisVideoSource(cla);
     }
