@@ -1,4 +1,4 @@
 #!/bin/sh
-PROGPATH=`dirname $0`
-CRYSTHOME=`( cd $PROGPATH/.. && /bin/pwd )`
- java $CRYSTHOME/lib/crystmntui-2.0.1.jar gov.lbl.als.bl831.MainFrame -v -e -d dcss -r 14000 -i bilinear
+PROGPATH=$(dirname "$0")
+CRYSTHOME=$(cd "$PROGPATH/.." && /bin/pwd)
+exec java -jar "$CRYSTHOME/lib/crystmntui-2.0.1-bundled.jar" "$@"
