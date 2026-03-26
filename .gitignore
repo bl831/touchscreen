@@ -6,6 +6,9 @@ dependency-reduced-pom.xml
 .vscode/
 .continue/
 
+# OMC
+.omc/
+
 # Log file
 *.log
 
