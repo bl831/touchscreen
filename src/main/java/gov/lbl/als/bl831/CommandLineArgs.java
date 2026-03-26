@@ -75,6 +75,9 @@ public class CommandLineArgs {
     @Option(names = {"-l", "--video-capture-list-uris"}, description = "causes the internal video capture system to be used.")
     private boolean videoCaptureListUris = false;
 
+    @Option(names = {"-s", "--simulate"}, description = "use simulated video source and do not connect to DCSS.")
+    private boolean simulate = false;
+
     @Option(names = {"-e", "--emulate"}, description = "emulate old-style touch coordinates for output.")
     private boolean emulate = false;
 
@@ -125,5 +128,9 @@ public class CommandLineArgs {
 
     public Object getInterpolation() {
         return interpolation;
+    }
+
+    public boolean getSimulate() {
+        return simulate;
     }
 }

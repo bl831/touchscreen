@@ -67,7 +67,7 @@ public class BeamControl extends Thread {
                     // line = line.toLowerCase().trim();
                     String line = mIn.readLine();
                     if (line == null) {
-                        continue;
+                        return;
                     }
                     if (line.isEmpty()) {
                         continue;

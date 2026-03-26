@@ -160,8 +160,8 @@ public class SimulateVideoSource implements VideoSource {
     }
 
     public SimulateVideoSource(Config config) {
-        // Set a default resolution
-        mWidth = 640;
+        // Match the minimum video widget resolution
+        mWidth = 704;
         mHeight = 480;
         
         System.out.println("Video source initialized with resolution: " + mWidth + "x" + mHeight);
