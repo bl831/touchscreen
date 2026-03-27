@@ -9,7 +9,6 @@ import java.awt.image.MemoryImageSource;
 
 import javax.swing.SwingUtilities;
 
-import gov.lbl.als.bl831.Config;
 import gov.lbl.als.bl831.VideoSource;
 
 public class SimulateVideoSource implements VideoSource {
@@ -159,11 +158,11 @@ public class SimulateVideoSource implements VideoSource {
         }
     }
 
-    public SimulateVideoSource(Config config) {
+    public SimulateVideoSource() {
         // Match the minimum video widget resolution
         mWidth = 704;
         mHeight = 480;
-        
+
         System.out.println("Video source initialized with resolution: " + mWidth + "x" + mHeight);
     }
 

@@ -10,6 +10,8 @@ import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +22,7 @@ import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
+import gov.lbl.als.bl831.AxisUriParser.AxisUriComponents;
 import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
 import gov.lbl.als.bl831.video.AxisVideoSource;
 import gov.lbl.als.bl831.video.FFmpegVideoSource;
@@ -112,7 +115,7 @@ public class MainFrame extends JFrame {
 
         final Config config = convertCla(cla);
 
-        if (cla.getVideoCaptureListUris()) {
+        if (cla.getListV4l2()) {
             try {
                 listAllV4L2Uris();
             } catch (IOException e) {
@@ -130,8 +133,12 @@ public class MainFrame extends JFrame {
                 clickSink = createNoOpClickSink();
                 inputStream = null;
             } else {
+                if (config.getTouchHostname() == null) {
+                    System.err.println("Touch server URI is required. Use -t or --touch to specify.");
+                    System.exit(1);
+                }
                 PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
-                        config.getDcssHostname(), config.getDcssPort()), 2000);
+                        config.getTouchHostname(), config.getTouchPort()), 2000);
                 clickSink = new EmulateTouch(socket.getOutputStream(),
                         config.isEmulate());
                 inputStream = socket.getInputStream();
@@ -176,7 +183,7 @@ public class MainFrame extends JFrame {
             ping.start();
 
         } catch (CameraException e1) {
-            System.err.printf("Unable to connect to the Axis Video Server: %s\n", e1);
+            System.err.printf("Unable to start video source: %s\n", e1);
             System.exit(2);
         }
     }
@@ -212,7 +219,7 @@ public class MainFrame extends JFrame {
                         ? img.getWidth(null) : 704.0;
                 final double srcHeight = (img != null && img.getHeight(null) > 0)
                         ? img.getHeight(null) : 480.0;
-                double radius = 0.05;
+                double radius = 0.03;
                 double beamW = radius * srcHeight / srcWidth;
                 VideoWidget vw = frame.mCrystalCenteringPanel.getVideoWidget();
                 System.out.printf("VideoWidget: %dx%d, source: %.0fx%.0f, beamW=%.4f, beamH=%.4f%n",
@@ -231,44 +238,88 @@ public class MainFrame extends JFrame {
 
     /**
      * Creates the appropriate video source for video display.
-     * 
-     * @param config
-     * @return
+     *
+     * @param cla
+     *        the parsed command line arguments.
+     * @return the configured video source.
      * @throws CameraException
+     *         if the video source could not be created.
      */
     private static VideoSource configCamera(CommandLineArgs cla) throws CameraException {
         if (cla.getSimulate()) {
-            return new SimulateVideoSource(convertCla(cla));
+            return new SimulateVideoSource();
         }
-        if (!cla.getVideoCaptureUri().isEmpty()) {
+
+        String videoUri = cla.getVideoUri();
+
+        if (videoUri.startsWith("axis://")) {
             try {
-                V4L2UriComponents c = V4L2UriParser.parseUri(cla.getVideoCaptureUri());
-                return new FFmpegVideoSource("/dev/" + c.getDevice(), c.getPixelFormat(), c.getWidth(), c.getHeight(), (int)c.getFps());
+                AxisUriComponents c = AxisUriParser.parseUri(videoUri);
+                return new AxisVideoSource(c.getHostname(), c.getPort(), c.getCamera(),
+                        c.getResolution(), c.getFps(),
+                        c.getUsername(), c.getPassword());
             } catch (IllegalArgumentException ex) {
-                throw new CameraException ("'" + cla.getVideoCaptureUri() + "' could not be created. " + ex.getMessage());
+                throw new CameraException("'" + videoUri + "' could not be created. "
+                        + ex.getMessage());
             }
         }
-        return new AxisVideoSource(cla);
+
+        if (videoUri.startsWith("v4l2://")) {
+            try {
+                V4L2UriComponents c = V4L2UriParser.parseUri(videoUri);
+                return new FFmpegVideoSource("/dev/" + c.getDevice(), c.getPixelFormat(),
+                        c.getWidth(), c.getHeight(), (int) c.getFps());
+            } catch (IllegalArgumentException ex) {
+                throw new CameraException("'" + videoUri + "' could not be created. "
+                        + ex.getMessage());
+            }
+        }
+
+        if (!videoUri.isEmpty()) {
+            throw new CameraException("Unknown video URI scheme: " + videoUri
+                    + "\nSupported schemes: axis://, v4l2://");
+        }
+
+        //
+        // No video URI specified.
+        //
+        System.err.println("Video source URI is required. Use -v or --video to specify.");
+        System.exit(1);
+        return null;
     }
 
     /**
-     * Parses the command line arguments into a Config object that will be used
-     * by the rest of the program.
-     * 
-     * @param args
-     *        the command line arguments as they were passed into main.
+     * Converts the command line arguments into a Config object.
+     *
+     * @param cla
+     *        the parsed command line arguments.
+     * @return the configuration.
      */
-    private static Config convertCla(CommandLineArgs args) {
-        return new Config(args.getDcsshostname(), Integer.toString(args.getDcssport()), args.getHostname(), Integer.toString(args.getPort()),
-                Integer.toString(args.getCamera()), !args.getVideoCaptureUri().isEmpty(),
-                args.getEmulate(), args.getInterpolation(), args.getFramesPerSecond());
+    private static Config convertCla(CommandLineArgs cla) {
+        String touchHostname = null;
+        int touchPort = 14000;
+
+        String touchUri = cla.getTouchUri();
+        if (touchUri != null && !touchUri.isEmpty()) {
+            try {
+                URI uri = new URI(touchUri.replaceFirst("^touch://", "http://"));
+                touchHostname = uri.getHost();
+                if (uri.getPort() != -1) {
+                    touchPort = uri.getPort();
+                }
+            } catch (URISyntaxException e) {
+                System.err.printf("Invalid touch URI '%s'.%n", touchUri);
+            }
+        }
+
+        return new Config(touchHostname, touchPort, cla.getEmulate(), cla.getInterpolation());
     }
 
     private static void listAllV4L2Uris() throws IOException {
 
         List<String> uris = new ArrayList<>();
-        
-        CameraEnumerator ce = new CameraEnumerator();        
+
+        CameraEnumerator ce = new CameraEnumerator();
         Collection<String> devices = ce.getVideoDevices();
         for (String device : devices) {
             uris.addAll(ce.getV4L2Uris(device));

@@ -5,70 +5,31 @@ package gov.lbl.als.bl831;
  */
 public class Config {
 
-    private final String  mDcssHostname;
-    private final int     mDcssPort;
-    private final String  mHostname;
-    private final int     mPort;
-    private final int     mCamera;
-    private final boolean mVideoCapture;
+    private final String  mTouchHostname;
+    private final int     mTouchPort;
     private final boolean mEmulate;
     private final Object  mInterpolationHint;
-    private final float   mFramesPerSecondHint;
 
-    public Config(String dcsshostname, String dcssport, String hostname, String port,
-                  String camera, boolean videoCapture, boolean emulate,
-                  Object interpolationHint, float framesPerSecondHint) {
-        mDcssHostname = dcsshostname;
-        mHostname = hostname;
-        mVideoCapture = videoCapture;
+    public Config(String touchHostname, int touchPort, boolean emulate,
+                  Object interpolationHint) {
+        mTouchHostname = touchHostname;
+        mTouchPort = touchPort;
         mEmulate = emulate;
-        mDcssPort = Integer.parseInt(dcssport);
-        mPort = Integer.parseInt(port);
-        mCamera = Integer.parseInt(camera);
         mInterpolationHint = interpolationHint;
-        mFramesPerSecondHint = framesPerSecondHint;
     }
 
     /**
-     * @return dcss hostname
+     * @return touch server hostname
      */
-    public String getDcssHostname() {
-        return mDcssHostname;
+    public String getTouchHostname() {
+        return mTouchHostname;
     }
 
     /**
-     * @return dcss port
+     * @return touch server port
      */
-    public int getDcssPort() {
-        return mDcssPort;
-    }
-
-    /**
-     * @return the hostname
-     */
-    public String getHostname() {
-        return mHostname;
-    }
-
-    /**
-     * @return the port
-     */
-    public int getPort() {
-        return mPort;
-    }
-
-    /**
-     * @return the camera
-     */
-    public int getCamera() {
-        return mCamera;
-    }
-
-    /**
-     * @return the videoCapture
-     */
-    public boolean isVideoCapture() {
-        return mVideoCapture;
+    public int getTouchPort() {
+        return mTouchPort;
     }
 
     /**
@@ -80,10 +41,6 @@ public class Config {
 
     public Object getInterpolationHint() {
         return mInterpolationHint;
-    }
-
-    public float getFramesPerSecondHint() {
-        return mFramesPerSecondHint;
     }
 
 }
