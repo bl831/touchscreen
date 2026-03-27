@@ -4,6 +4,7 @@ import java.awt.Image;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 
 import javax.swing.SwingUtilities;
@@ -26,7 +27,7 @@ import static org.bytedeco.ffmpeg.global.swscale.*;
 
 /**
  * Video source implementation using ByteDeco (JavaCV) for capturing video frames
- * from a device using FFmpeg.
+ * from a V4L2 device or an HTTP MJPEG stream using FFmpeg.
  */
 public class FFmpegVideoSource implements VideoSource {
 
@@ -35,39 +36,81 @@ public class FFmpegVideoSource implements VideoSource {
     private  ActionListener listener = null;
 
     private VideoCaptureThread              mCaptureThread;
-    
+
     /**
-     * Thread class responsible for capturing video frames from the device.
+     * Constructor for V4L2 device capture.
+     *
+     * @param device The video device to capture from
+     * @param fourccPixelFormat The FOURCC pixel format string
+     * @param width The width of the video frames
+     * @param height The height of the video frames
+     * @param fps The frames per second rate
+     */
+    public FFmpegVideoSource(String device, String fourccPixelFormat, int width, int height, int fps) {
+        super();
+        mCaptureThread = new VideoCaptureThread(device, fourccPixelFormat, width, height, fps);
+    }
+
+    /**
+     * Constructor for URL-based MJPEG stream capture (e.g. Axis cameras).
+     *
+     * @param uri The URI of the MJPEG stream
+     */
+    public FFmpegVideoSource(URI uri) {
+        super();
+        mCaptureThread = new VideoCaptureThread(uri);
+    }
+
+    /**
+     * Thread class responsible for capturing video frames.
      */
     private class VideoCaptureThread extends Thread {
         private volatile boolean running = false;
         private SwsContext context = null;
-        private String device;
-        private String fourccPixelFormat;
-        private int width;
-        private int height;
-        private int fps;
+
+        private final String source;
+        private final String fourccPixelFormat;
+        private final int width;
+        private final int height;
+        private final int fps;
+        private final boolean isUrl;
 
         private Image image;
 
         private ByteBuffer dstBufferCache = null;
 
         /**
-         * Constructor for VideoCaptureThread.
-         * 
+         * Constructor for V4L2 device capture.
+         *
          * @param device The video device to capture from
          * @param fourccPixelFormat The FOURCC pixel format string
          * @param width The width of the video frames
          * @param height The height of the video frames
          * @param fps The frames per second rate
          */
-        public VideoCaptureThread(String device, String fourccPixelFormat, int width, int height, int fps) {
-            this.device = device;
+        public VideoCaptureThread(String device, String fourccPixelFormat,
+                                   int width, int height, int fps) {
+            this.source = device;
             this.fourccPixelFormat = fourccPixelFormat;
             this.width = width;
             this.height = height;
             this.fps = fps;
-        }   
+            this.isUrl = false;
+        }
+
+        /**
+         * Constructor for URL-based capture (e.g. Axis HTTP MJPEG streams).
+         *
+         * @param uri The URI of the MJPEG stream
+         */
+        public VideoCaptureThread(URI uri) {
+            this.source = uri.toString();
+            this.fourccPixelFormat = null;
+            this.width = 0;
+            this.height = 0;
+            this.fps = 0;
+            this.isUrl = true;
+        }
 
         /**
          * Main execution method for the thread.
@@ -77,8 +120,13 @@ public class FFmpegVideoSource implements VideoSource {
         public void run() {
             running = true;
             try {
-                startCapture(this.device, this.fourccPixelFormat, this.width, this.height, this.fps);
+                if (isUrl) {
+                    startUrlCapture(source);
+                } else {
+                    startDeviceCapture(source, fourccPixelFormat, width, height, fps);
+                }
             } catch (IOException e) {
+                System.err.printf("Video capture error: %s%n", e.getMessage());
                 Thread.currentThread().interrupt();
             }
         }
@@ -92,7 +140,7 @@ public class FFmpegVideoSource implements VideoSource {
 
         /**
          * Gets the current image from the video capture thread.
-         * 
+         *
          * @return The current BufferedImage, or null if no image is available
          */
         public Image getImage() {
@@ -100,8 +148,22 @@ public class FFmpegVideoSource implements VideoSource {
         }
 
         /**
-         * Starts the video capture process with the specified parameters.
-         * 
+         * Starts capture from a URL-based MJPEG stream.
+         *
+         * @param url The URL of the stream
+         * @throws IOException If an I/O error occurs during capture
+         */
+        private void startUrlCapture(String url) throws IOException {
+            try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(url)) {
+                grabber.setOption("fflags", "nobuffer");
+                grabber.start();
+                captureLoop(grabber);
+            }
+        }
+
+        /**
+         * Starts capture from a V4L2 device with the specified parameters.
+         *
          * @param device The video device to capture from
          * @param fourccPixelFormat The FOURCC pixel format string
          * @param width The width of the video frames
@@ -109,13 +171,14 @@ public class FFmpegVideoSource implements VideoSource {
          * @param fps The frames per second rate
          * @throws IOException If an I/O error occurs during capture
          */
-        private void startCapture(String device, String fourccPixelFormat, int width, int height, int fps) throws IOException {
+        private void startDeviceCapture(String device, String fourccPixelFormat,
+                                         int width, int height, int fps) throws IOException {
             if (fourccPixelFormat == null) {
                 fourccPixelFormat = askDriverForPixelFormat(device);
                 System.out.printf("No pixel format specified, querying device '%s' returned pixel format '%s'%n", device, fourccPixelFormat);
             }
             try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(device)) {
-                
+
                 // Special handling for MJPEG streams. ffmpeg has depricated processing of older MJPEG
                 // streams, so we need to use a workaround. We set the image mode to RAW and then
                 // tell the driver to capture in native MJPEG format without conversion.
@@ -132,26 +195,52 @@ public class FFmpegVideoSource implements VideoSource {
                 grabber.setOption("fflags", "nobuffer");
                 grabber.setOption("probesize", "32");
                 grabber.start();
-                while (!Thread.currentThread().isInterrupted() && running) {
-                    Frame f = grabber.grabImage();
-                    if (f == null)
-                        break;
-                        
-                    // Special handling for MJPEG frames.
-                    f = swsScaleMjpegToBgr24Frame(f);
-                    BufferedImage img = converter.convert(f);
-                    f.close();
-                    if (img != null) {
-                        this.image = img;
-                        if (listener != null) {
-                            SwingUtilities.invokeLater(() -> listener.actionPerformed(null));
-                        }
+                captureLoop(grabber);
+            }
+        }
+
+        /**
+         * Shared capture loop for both device and URL sources. Grabs frames,
+         * handles MJPEG conversion, and notifies the listener.
+         *
+         * @param grabber The configured and started frame grabber
+         * @throws IOException If an I/O error occurs during capture
+         */
+        private void captureLoop(FFmpegFrameGrabber grabber) throws IOException {
+            while (!Thread.currentThread().isInterrupted() && running) {
+                // Suppress "deprecated pixel format used" warning from FFmpeg's internal
+                // MJPEG decoder. The warning fires inside grabImage() on every frame because
+                // MJPEG cameras (both Axis and V4L2) send yuvj422p, which FFmpeg deprecated
+                // in favor of yuv422p with a full-range flag. The warning originates from
+                // native swscale code inside FFmpegFrameGrabber, not from our conversion code.
+                //
+                // av_log_set_callback was attempted but crashes (JavaCPP_exception) because
+                // the native callback runs on FFmpeg's thread and can't safely interact with
+                // Java's exception handling. Toggling the log level around the specific call
+                // is the only reliable suppression from Java.
+                //
+                // Alternative: filter stderr in the launcher script (e.g. 2>&1 | grep -v).
+                int logLevel = av_log_get_level();
+                av_log_set_level(AV_LOG_ERROR);
+                Frame f = grabber.grabImage();
+                av_log_set_level(logLevel);
+                if (f == null)
+                    break;
+
+                // Special handling for MJPEG frames.
+                f = swsScaleMjpegToBgr24Frame(f);
+                BufferedImage img = converter.convert(f);
+                f.close();
+                if (img != null) {
+                    this.image = img;
+                    if (listener != null) {
+                        SwingUtilities.invokeLater(() -> listener.actionPerformed(null));
                     }
                 }
             }
         }
 
-        private String askDriverForPixelFormat(String deivce) {
+        private String askDriverForPixelFormat(String device) {
             String fourcc = null;
             try {
                 fourcc = (new V4L2CameraInfo().getPixelFormats(device, V4L2Ioctl.V4L2_BUF_TYPE_VIDEO_CAPTURE))
@@ -163,7 +252,7 @@ public class FFmpegVideoSource implements VideoSource {
 
         /**
          * Scales MJPEG frame to BGR24 format.
-         * 
+         *
          * @param frame The input frame to convert
          * @return The converted frame in BGR24 format
          */
@@ -193,7 +282,7 @@ public class FFmpegVideoSource implements VideoSource {
                 // Do the conversion if the format has changed, otherwise return the original
                 // frame.
                 if (avf.format() != srcFmt) {
-                    Frame convertedFrame = swsSaleMjpegToBgr24Frame(avf, srcFmt);
+                    Frame convertedFrame = swsScaleToBgr24Frame(avf, srcFmt);
                     frame.close();
                     frame = convertedFrame;
                 }
@@ -203,12 +292,12 @@ public class FFmpegVideoSource implements VideoSource {
 
         /**
          * Performs the actual scaling from MJPEG to BGR24 format.
-         * 
+         *
          * @param src The source AVFrame
          * @param srcFmt The source pixel format
          * @return The scaled frame in BGR24 format
          */
-        private Frame swsSaleMjpegToBgr24Frame(AVFrame src, int srcFmt) {
+        private Frame swsScaleToBgr24Frame(AVFrame src, int srcFmt) {
             int w = src.width();
             int h = src.height();
 
@@ -306,22 +395,8 @@ public class FFmpegVideoSource implements VideoSource {
     }
 
     /**
-     * Constructor for ByteDecoVideoSource.
-     * 
-     * @param device The video device to capture from
-     * @param fourccPixelFormat The FOURCC pixel format string
-     * @param width The width of the video frames
-     * @param height The height of the video frames
-     * @param fps The frames per second rate
-     */
-    public FFmpegVideoSource(String device, String fourccPixelFormat, int width, int height, int fps) {
-        super();
-        mCaptureThread = new VideoCaptureThread(device, fourccPixelFormat,  width, height, fps);
-    }
-
-    /**
      * Starts the video capture thread.
-     * 
+     *
      * @throws IOException If an I/O error occurs during capture
      */
     @Override
@@ -331,7 +406,7 @@ public class FFmpegVideoSource implements VideoSource {
 
     /**
      * Stops the video capture thread.
-     * 
+     *
      * @throws IOException If an I/O error occurs during capture
      */
     @Override
@@ -341,7 +416,7 @@ public class FFmpegVideoSource implements VideoSource {
 
     /**
      * Gets the current image from the video capture.
-     * 
+     *
      * @return The current BufferedImage, or null if no image is available
      */
     @Override
@@ -351,7 +426,7 @@ public class FFmpegVideoSource implements VideoSource {
 
     /**
      * Adds an action listener to be notified when new frames are available.
-     * 
+     *
      * @param listener The ActionListener to add
      */
     @Override
