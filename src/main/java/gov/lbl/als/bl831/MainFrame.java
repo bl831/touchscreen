@@ -22,9 +22,7 @@ import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
-import gov.lbl.als.bl831.AxisUriParser.AxisUriComponents;
 import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
-import gov.lbl.als.bl831.video.AxisVideoSource;
 import gov.lbl.als.bl831.video.FFmpegVideoSource;
 import gov.lbl.als.bl831.video.SimulateVideoSource;
 import picocli.CommandLine;
@@ -253,15 +251,7 @@ public class MainFrame extends JFrame {
         String videoUri = cla.getVideoUri();
 
         if (videoUri.startsWith("axis://")) {
-            try {
-                AxisUriComponents c = AxisUriParser.parseUri(videoUri);
-                return new AxisVideoSource(c.getHostname(), c.getPort(), c.getCamera(),
-                        c.getResolution(), c.getFps(),
-                        c.getUsername(), c.getPassword());
-            } catch (IllegalArgumentException ex) {
-                throw new CameraException("'" + videoUri + "' could not be created. "
-                        + ex.getMessage());
-            }
+            return new FFmpegVideoSource(AxisUriParser.toHttpUri(videoUri));
         }
 
         if (videoUri.startsWith("v4l2://")) {
