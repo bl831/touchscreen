@@ -2,9 +2,12 @@ package gov.lbl.als.bl831;
 
 import java.awt.RenderingHints;
 
+import java.util.Properties;
+
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.TypeConversionException;
 
 @Command(
@@ -90,5 +93,40 @@ public class CommandLineArgs {
 
     public Object getInterpolation() {
         return interpolation;
+    }
+
+    /**
+     * Applies defaults from a config file properties. Only sets values that
+     * were not explicitly provided on the command line.
+     *
+     * @param props
+     *        the properties loaded from the config file.
+     * @param parseResult
+     *        the picocli parse result used to check which options were
+     *        explicitly matched.
+     */
+    void applyConfigFile(Properties props, ParseResult parseResult) {
+        if (!parseResult.hasMatchedOption("--video")
+                && props.containsKey("cli.video")) {
+            videoUri = props.getProperty("cli.video");
+        }
+        if (!parseResult.hasMatchedOption("--touch")
+                && props.containsKey("cli.touch")) {
+            touchUri = props.getProperty("cli.touch");
+        }
+        if (!parseResult.hasMatchedOption("--emulate")
+                && props.containsKey("cli.emulate")) {
+            emulate = Boolean.parseBoolean(props.getProperty("cli.emulate"));
+        }
+        if (!parseResult.hasMatchedOption("--interpolation")
+                && props.containsKey("cli.interpolation")) {
+            try {
+                interpolation = new InterpolationConverter()
+                        .convert(props.getProperty("cli.interpolation"));
+            } catch (Exception e) {
+                System.err.printf("Invalid interpolation in config file: %s%n",
+                        props.getProperty("cli.interpolation"));
+            }
+        }
     }
 }
