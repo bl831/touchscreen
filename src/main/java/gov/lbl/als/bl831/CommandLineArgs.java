@@ -2,7 +2,6 @@ package gov.lbl.als.bl831;
 
 import java.awt.RenderingHints;
 
-import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
@@ -32,57 +31,32 @@ public class CommandLineArgs {
         }
     }
 
-    static class VideoCaptureUriConverter implements ITypeConverter<String> {
-
-        @Override
-        public String convert(String value) throws Exception {
-            try {
-                V4L2UriComponents components = V4L2UriParser.parseUri(value);
-                return components.toUriString();
-            } catch (IllegalArgumentException ex) {
-                throw new TypeConversionException ("'" + value + "'. " + ex.getMessage() + "\nUse the --video-capture-list-uris option to see choices.");
-            }            
-        }
-    }
-
     @Option(names = {"-V", "--version"}, versionHelp = true, description = "display version info")
     boolean versionInfoRequested;
 
     @Option(names = {"--help"}, usageHelp = true, description = "display this help message")
-    boolean usageHelpRequested;       
-    
-    @Option(names = {"-h", "--hostname"}, description = "the Axis server name. (defaults to axis)")
-    private String hostname = "axis";
+    boolean usageHelpRequested;
 
-    @Option(names = {"-p", "--port"}, description = "the Axis server port. (defaults to 80)")
-    private int port = 80;
+    @Option(names = {"-v", "--video"},
+            description = "video source URI. (axis://host/axis-cgi/mjpg/video.cgi?camera=1 or v4l2://video0/MJPG/640x480/30fps)")
+    private String videoUri = "";
 
-    @Option(names = {"-c", "--camera"}, description = "the camera stream number to display. (defaults to 4)")
-    private int camera = 4;
+    @Option(names = {"-t", "--touch"},
+            description = "touch server URI that translates touch commands to DCSS. (e.g. touch://hostname:14000)")
+    private String touchUri = "";
 
-    @Option(names = {"-d", "--dcss-hostname"}, description = "the DCSS touch server name. (defaults to dcss)")
-    private String dcsshostname = "dcss";
+    @Option(names = {"-c", "--config"},
+            description = "path to button configuration file.")
+    private String configFile = "";
 
-    @Option(names = {"-r", "--dcss-port"}, description = "the DCSS touch server port. (defaults to 14000)")
-    private int dcssport = 14000;
+    @Option(names = {"-l", "--list-v4l2"}, description = "list available V4L2 video capture URIs.")
+    private boolean listV4l2 = false;
 
-    @Option(names = {"-v", "--video-capture"},
-            description = "the uri that specifies the video properties to capture.",
-            converter = VideoCaptureUriConverter.class
-    )
-    private String videoCaptureUri = "none";
-
-    @Option(names = {"-l", "--video-capture-list-uris"}, description = "causes the internal video capture system to be used.")
-    private boolean videoCaptureListUris = false;
-
-    @Option(names = {"-s", "--simulate"}, description = "use simulated video source and do not connect to DCSS.")
+    @Option(names = {"-s", "--simulate"}, description = "use simulated video source and do not connect to touch server.")
     private boolean simulate = false;
 
     @Option(names = {"-e", "--emulate"}, description = "emulate old-style touch coordinates for output.")
     private boolean emulate = false;
-
-    @Option(names = {"-f", "--frames-per-second"}, description = "capture device frame rate. (can be 15.0, 24.0, or 30.0).")
-    private float framesPerSecond = 24.0f;
 
     @Option(names = {"-i", "--interpolation"},
             description = "image interpolation. (can be 'nearest', 'bilinear', or 'bicubic').",
@@ -90,47 +64,31 @@ public class CommandLineArgs {
     )
     private Object interpolation = null;
 
-    public String getHostname() {
-        return hostname;
+    public String getVideoUri() {
+        return videoUri;
     }
 
-    public int getPort() {
-        return port;
+    public String getTouchUri() {
+        return touchUri;
     }
 
-    public int getCamera() {
-        return camera;
+    public String getConfigFile() {
+        return configFile;
     }
 
-    public String getDcsshostname() {
-        return dcsshostname;
+    public boolean getListV4l2() {
+        return listV4l2;
     }
 
-    public int getDcssport() {
-        return dcssport;
-    }
-
-    public String getVideoCaptureUri() {
-        return videoCaptureUri;
-    }
-
-    public boolean getVideoCaptureListUris() {
-        return videoCaptureListUris;
+    public boolean getSimulate() {
+        return simulate;
     }
 
     public boolean getEmulate() {
         return emulate;
     }
 
-    public float getFramesPerSecond() {
-        return framesPerSecond;
-    }
-
     public Object getInterpolation() {
         return interpolation;
-    }
-
-    public boolean getSimulate() {
-        return simulate;
     }
 }

@@ -3,7 +3,6 @@ package gov.lbl.als.bl831.video;
 import java.awt.Image;
 import java.awt.event.ActionListener;
 
-import gov.lbl.als.bl831.CommandLineArgs;
 import gov.lbl.als.bl831.VideoSource;
 import willibert.NetCamLib.Camera;
 import willibert.NetCamLib.CameraException;
@@ -15,16 +14,29 @@ public class AxisVideoSource implements VideoSource {
 
     private final Camera mCamera;
 
-    public AxisVideoSource(CommandLineArgs cla) {
+    public AxisVideoSource(String hostname, int port, int camera,
+                            String resolution, int fps,
+                            String username, String password) {
         mCamera = new Camera();
 
         try {
-            mCamera.setChannel(cla.getCamera());
+            mCamera.setChannel(camera);
         } catch (CameraException e) {
             e.printStackTrace();
         }
-        mCamera.setIPAddress(cla.getHostname(), cla.getPort());
+        mCamera.setIPAddress(hostname, port);
 
+        if (resolution != null && !resolution.isEmpty()) {
+            mCamera.setResolution(resolution);
+        }
+        if (fps > 0) {
+            mCamera.setFramerate(fps);
+        }
+
+        if (username != null && !username.isEmpty()) {
+            mCamera.enableAuthentication(true);
+            mCamera.setAuthentication(username, password);
+        }
     }
 
     @Override
