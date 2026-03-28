@@ -7,11 +7,13 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Properties;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -99,9 +101,10 @@ public class MainFrame extends JFrame {
     public static void main(String[] args) {
 
         CommandLineArgs cla = new CommandLineArgs();
+        ParseResult parseResult = null;
         try {
             CommandLine cl = new CommandLine(cla);
-            ParseResult parseResult = cl.parseArgs(args);
+            parseResult = cl.parseArgs(args);
             if (CommandLine.printHelpIfRequested(parseResult)) {
                 System.exit(0);
             };
@@ -109,6 +112,14 @@ public class MainFrame extends JFrame {
             System.err.println(ex.getMessage() + System.lineSeparator());
             ex.getCommandLine().usage(System.err);
             System.exit(1);
+        }
+
+        String configFile = cla.getConfigFile();
+        if (!configFile.isEmpty()) {
+            Properties props = loadConfigFile(configFile);
+            if (props != null) {
+                cla.applyConfigFile(props, parseResult);
+            }
         }
 
         final Config config = convertCla(cla);
@@ -303,6 +314,25 @@ public class MainFrame extends JFrame {
         }
 
         return new Config(touchHostname, touchPort, cla.getEmulate(), cla.getInterpolation());
+    }
+
+    /**
+     * Loads a properties file from the given path.
+     *
+     * @param path
+     *        the path to the config file.
+     * @return the loaded properties, or null if the file could not be read.
+     */
+    private static Properties loadConfigFile(String path) {
+        Properties props = new Properties();
+        try (FileInputStream fis = new FileInputStream(path)) {
+            props.load(fis);
+            return props;
+        } catch (IOException e) {
+            System.err.printf("Unable to load config file '%s': %s%n",
+                    path, e.getMessage());
+            return null;
+        }
     }
 
     private static void listAllV4L2Uris() throws IOException {
