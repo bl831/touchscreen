@@ -18,9 +18,13 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.FrameGrabber.ImageMode;
 
+import gov.lbl.als.bl831.AxisUriParser;
+import gov.lbl.als.bl831.V4L2UriParser;
+import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
 import gov.lbl.als.bl831.VideoSource;
 import io.tetrah.camerainfo.v4l2.V4L2CameraInfo;
 import io.tetrah.camerainfo.v4l2.ioctl.V4L2Ioctl;
+import willibert.NetCamLib.CameraException;
 
 import static org.bytedeco.ffmpeg.global.avutil.*;
 import static org.bytedeco.ffmpeg.global.swscale.*;
@@ -36,6 +40,37 @@ public class FFmpegVideoSource implements VideoSource {
     private  ActionListener listener = null;
 
     private VideoCaptureThread              mCaptureThread;
+
+    /**
+     * Creates an FFmpegVideoSource from a video URI string. Handles both
+     * axis:// and v4l2:// URI schemes.
+     *
+     * @param videoUri
+     *        the video source URI.
+     * @return the configured video source.
+     * @throws CameraException
+     *         if the URI scheme is unknown or the source could not be created.
+     */
+    public static FFmpegVideoSource fromUri(String videoUri) throws CameraException {
+        if (videoUri.startsWith("axis://")) {
+            return new FFmpegVideoSource(AxisUriParser.toHttpUri(videoUri));
+        }
+
+        if (videoUri.startsWith("v4l2://")) {
+            try {
+                V4L2UriComponents c = V4L2UriParser.parseUri(videoUri);
+                return new FFmpegVideoSource("/dev/" + c.getDevice(),
+                        c.getPixelFormat(), c.getWidth(), c.getHeight(),
+                        (int) c.getFps());
+            } catch (IllegalArgumentException ex) {
+                throw new CameraException("'" + videoUri
+                        + "' could not be created. " + ex.getMessage());
+            }
+        }
+
+        throw new CameraException("Unknown video URI scheme: " + videoUri
+                + "\nSupported schemes: axis://, v4l2://");
+    }
 
     /**
      * Constructor for V4L2 device capture.
