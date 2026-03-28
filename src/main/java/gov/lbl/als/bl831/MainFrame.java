@@ -7,14 +7,9 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Properties;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -24,7 +19,6 @@ import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
-import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
 import gov.lbl.als.bl831.video.FFmpegVideoSource;
 import gov.lbl.als.bl831.video.SimulateVideoSource;
 import picocli.CommandLine;
@@ -114,15 +108,7 @@ public class MainFrame extends JFrame {
             System.exit(1);
         }
 
-        String configFile = cla.getConfigFile();
-        if (!configFile.isEmpty()) {
-            Properties props = loadConfigFile(configFile);
-            if (props != null) {
-                cla.applyConfigFile(props, parseResult);
-            }
-        }
-
-        final Config config = convertCla(cla);
+        final Config config = Config.fromCommandLine(cla, parseResult);
 
         if (cla.getListV4l2()) {
             try {
@@ -134,12 +120,22 @@ public class MainFrame extends JFrame {
         }
 
         try {
-            final VideoSource videoSource = configCamera(cla);
+            if (!config.isSimulate()
+                    && (config.getVideoUri() == null
+                        || config.getVideoUri().isEmpty())) {
+                System.err.println("Video source URI is required. Use -v or --video to specify.");
+                System.exit(1);
+            }
+
+            final VideoSource videoSource = config.isSimulate()
+                    ? new SimulateVideoSource()
+                    : FFmpegVideoSource.fromUri(config.getVideoUri());
+
             final ClickSink clickSink;
             final InputStream inputStream;
 
-            if (cla.getSimulate()) {
-                clickSink = createNoOpClickSink();
+            if (config.isSimulate()) {
+                clickSink = ClickSink.noOp();
                 inputStream = null;
             } else {
                 if (config.getTouchHostname() == null) {
@@ -165,7 +161,7 @@ public class MainFrame extends JFrame {
                     frame.pack();
                     frame.setLocationRelativeTo(null);
                     frame.setVisible(true);
-                    if (cla.getSimulate()) {
+                    if (config.isSimulate()) {
                         setupSimulatedBeam(frame, videoSource);
                     }
                 }
@@ -195,19 +191,6 @@ public class MainFrame extends JFrame {
             System.err.printf("Unable to start video source: %s\n", e1);
             System.exit(2);
         }
-    }
-
-    /**
-     * Creates a no-op ClickSink that discards all events. Used in simulate
-     * mode when there is no DCSS connection.
-     */
-    private static ClickSink createNoOpClickSink() {
-        return new ClickSink() {
-            @Override public void buttonPressed(VirtualButton button) {}
-            @Override public void lightSlideClicked(double value) {}
-            @Override public void videoClicked(double x, double y, double heightOverWidth) {}
-            @Override public void heartbeat() {}
-        };
     }
 
     /**
@@ -243,96 +226,6 @@ public class MainFrame extends JFrame {
                 Thread.currentThread().interrupt();
             }
         }, "SimBeamSetup").start();
-    }
-
-    /**
-     * Creates the appropriate video source for video display.
-     *
-     * @param cla
-     *        the parsed command line arguments.
-     * @return the configured video source.
-     * @throws CameraException
-     *         if the video source could not be created.
-     */
-    private static VideoSource configCamera(CommandLineArgs cla) throws CameraException {
-        if (cla.getSimulate()) {
-            return new SimulateVideoSource();
-        }
-
-        String videoUri = cla.getVideoUri();
-
-        if (videoUri.startsWith("axis://")) {
-            return new FFmpegVideoSource(AxisUriParser.toHttpUri(videoUri));
-        }
-
-        if (videoUri.startsWith("v4l2://")) {
-            try {
-                V4L2UriComponents c = V4L2UriParser.parseUri(videoUri);
-                return new FFmpegVideoSource("/dev/" + c.getDevice(), c.getPixelFormat(),
-                        c.getWidth(), c.getHeight(), (int) c.getFps());
-            } catch (IllegalArgumentException ex) {
-                throw new CameraException("'" + videoUri + "' could not be created. "
-                        + ex.getMessage());
-            }
-        }
-
-        if (!videoUri.isEmpty()) {
-            throw new CameraException("Unknown video URI scheme: " + videoUri
-                    + "\nSupported schemes: axis://, v4l2://");
-        }
-
-        //
-        // No video URI specified.
-        //
-        System.err.println("Video source URI is required. Use -v or --video to specify.");
-        System.exit(1);
-        return null;
-    }
-
-    /**
-     * Converts the command line arguments into a Config object.
-     *
-     * @param cla
-     *        the parsed command line arguments.
-     * @return the configuration.
-     */
-    private static Config convertCla(CommandLineArgs cla) {
-        String touchHostname = null;
-        int touchPort = 14000;
-
-        String touchUri = cla.getTouchUri();
-        if (touchUri != null && !touchUri.isEmpty()) {
-            try {
-                URI uri = new URI(touchUri.replaceFirst("^touch://", "http://"));
-                touchHostname = uri.getHost();
-                if (uri.getPort() != -1) {
-                    touchPort = uri.getPort();
-                }
-            } catch (URISyntaxException e) {
-                System.err.printf("Invalid touch URI '%s'.%n", touchUri);
-            }
-        }
-
-        return new Config(touchHostname, touchPort, cla.getEmulate(), cla.getInterpolation());
-    }
-
-    /**
-     * Loads a properties file from the given path.
-     *
-     * @param path
-     *        the path to the config file.
-     * @return the loaded properties, or null if the file could not be read.
-     */
-    private static Properties loadConfigFile(String path) {
-        Properties props = new Properties();
-        try (FileInputStream fis = new FileInputStream(path)) {
-            props.load(fis);
-            return props;
-        } catch (IOException e) {
-            System.err.printf("Unable to load config file '%s': %s%n",
-                    path, e.getMessage());
-            return null;
-        }
     }
 
     private static void listAllV4L2Uris() throws IOException {

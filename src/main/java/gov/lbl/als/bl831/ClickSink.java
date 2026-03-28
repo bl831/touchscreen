@@ -40,4 +40,17 @@ public interface ClickSink {
      */
     void heartbeat();
 
+    /**
+     * Creates a no-op ClickSink that discards all events. Used in simulate
+     * mode when there is no DCSS connection.
+     */
+    static ClickSink noOp() {
+        return new ClickSink() {
+            @Override public void buttonPressed(VirtualButton button) {}
+            @Override public void lightSlideClicked(double value) {}
+            @Override public void videoClicked(double x, double y, double heightOverWidth) {}
+            @Override public void heartbeat() {}
+        };
+    }
+
 }
