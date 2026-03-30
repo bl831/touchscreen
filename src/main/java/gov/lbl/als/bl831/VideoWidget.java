@@ -59,8 +59,17 @@ public class VideoWidget extends JPanel {
                 if (mVideoRect != null && mVideoRect.contains(e.getPoint())) {
                     double x = (e.getX() - mVideoRect.x) / (double) mVideoRect.width;
                     double y = (e.getY() - mVideoRect.y) / (double) mVideoRect.height;
-                    mClickSink.videoClicked(x, y, (double) mVideoRect.height
-                                                  / (double) mVideoRect.width);
+                    ButtonConfig buttonConfig = mConfig.getButtonOverrides()
+                            .get(VirtualButton.Center);
+                    if (buttonConfig != null && buttonConfig.getCommand() != null) {
+                        String command = buttonConfig.getCommand()
+                                .replace("${x}", String.format("%g", x))
+                                .replace("${y}", String.format("%g", y));
+                        mClickSink.sendCommand(command);
+                    } else {
+                        mClickSink.videoClicked(x, y, (double) mVideoRect.height
+                                                      / (double) mVideoRect.width);
+                    }
                 }
             }
         });
@@ -100,6 +109,13 @@ public class VideoWidget extends JPanel {
             g.drawImage(mCurrentImage, xOffset, yOffset, destDim.width + xOffset,
                     destDim.height + yOffset, 0, 0, imageWidth, imageHeight, this);
             mVideoRect = new Rectangle(new Point(xOffset, yOffset), destDim);
+
+            if (mConfig.getBorderColor() != null) {
+                g2d.setPaint(mConfig.getBorderColor());
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawRect(mVideoRect.x, mVideoRect.y,
+                        mVideoRect.width - 1, mVideoRect.height - 1);
+            }
 
             if (mBeamH > 0.0 && mBeamW > 0.0) {
                 if (!mAliasHints.isEmpty()) {

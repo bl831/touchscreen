@@ -35,6 +35,19 @@ public class EmulateTouch implements ClickSink {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void sendCommand(String command) {
+        try {
+            mOut.write(String.format("%s\n", command).getBytes());
+            mOut.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * Sends a "Finger Down" followed by a "Finger Up" event.
      * 
      * @param x

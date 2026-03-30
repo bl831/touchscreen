@@ -61,6 +61,10 @@ public class CommandLineArgs {
     @Option(names = {"-e", "--emulate"}, description = "emulate old-style touch coordinates for output.")
     private boolean emulate = false;
 
+    @Option(names = {"-w", "--window"},
+            description = "window size. (e.g. '1920x1080' or 'full'). Default: full.")
+    private String window = "full";
+
     @Option(names = {"-i", "--interpolation"},
             description = "image interpolation. (can be 'nearest', 'bilinear', or 'bicubic').",
             converter = InterpolationConverter.class
@@ -91,6 +95,10 @@ public class CommandLineArgs {
         return emulate;
     }
 
+    public String getWindow() {
+        return window;
+    }
+
     public Object getInterpolation() {
         return interpolation;
     }
@@ -117,6 +125,10 @@ public class CommandLineArgs {
         if (!parseResult.hasMatchedOption("--emulate")
                 && props.containsKey("cli.emulate")) {
             emulate = Boolean.parseBoolean(props.getProperty("cli.emulate"));
+        }
+        if (!parseResult.hasMatchedOption("--window")
+                && props.containsKey("cli.window")) {
+            window = props.getProperty("cli.window");
         }
         if (!parseResult.hasMatchedOption("--interpolation")
                 && props.containsKey("cli.interpolation")) {
