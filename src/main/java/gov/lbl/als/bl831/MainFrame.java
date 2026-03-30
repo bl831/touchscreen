@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
@@ -60,9 +61,17 @@ public class MainFrame extends JFrame {
         CrystalCenteringPanel crystalCenteringPanel = getCrystalCenteringPanel(clickSink,
                 config);
         add(crystalCenteringPanel, BorderLayout.CENTER);
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        setSize(screenSize.width, screenSize.height);
-        setUndecorated(true);
+        if (config.getBorderColor() != null) {
+            crystalCenteringPanel.setBorder(
+                    BorderFactory.createLineBorder(config.getBorderColor(), 2));
+        }
+        if (config.isFullScreen()) {
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            setSize(screenSize.width, screenSize.height);
+            setUndecorated(true);
+        } else {
+            setSize(config.getWindowWidth(), config.getWindowHeight());
+        }
 
         AbstractAction exitAction = new AbstractAction() {
             @Override
@@ -70,10 +79,10 @@ public class MainFrame extends JFrame {
                 System.exit(0);
             }
         };
-        crystalCenteringPanel.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                "exit");
-        crystalCenteringPanel.getInputMap().put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK), "exit");
+        crystalCenteringPanel.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "exit");
+        crystalCenteringPanel.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK), "exit");
         crystalCenteringPanel.getActionMap().put("exit", exitAction);
 
         return crystalCenteringPanel.getVideoWidget();

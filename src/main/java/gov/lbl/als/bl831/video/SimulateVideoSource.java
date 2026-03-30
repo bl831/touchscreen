@@ -38,12 +38,17 @@ public class SimulateVideoSource implements VideoSource {
         private double previousFigure8X = 0;
         private double previousFigure8Y = 0;
         private boolean isFirstFrame = true;
+        private final int[] pixels = new int[mWidth * mHeight];
+        private final MemoryImageSource sourceImage =
+                new MemoryImageSource(mWidth, mHeight, mColorModel,
+                        pixels, 0, mWidth);
         
         @Override
         public void run() {
             running = true;
+            sourceImage.setAnimated(true);
+            mCurrentImage = mToolkit.createImage(sourceImage);
             try {
-                // Simulate video capture
                 while (running && mIsRunning) {
                     simulateVideoFrame();
                     Thread.sleep(33); // ~30 FPS
@@ -54,8 +59,6 @@ public class SimulateVideoSource implements VideoSource {
         }
         
         private void simulateVideoFrame() {
-            // Create a simple animated image for simulation
-            int[] pixels = new int[mWidth * mHeight];
             long time = System.currentTimeMillis();
             
             // Initialize first drop at center
@@ -144,9 +147,7 @@ public class SimulateVideoSource implements VideoSource {
                 }
             }
             
-            MemoryImageSource sourceImage = new MemoryImageSource(mWidth, mHeight,
-                    mColorModel, pixels, 0, mWidth);
-            mCurrentImage = mToolkit.createImage(sourceImage);
+            sourceImage.newPixels();
             
             if (mListener != null) {
                 SwingUtilities.invokeLater(() -> mListener.actionPerformed(null));
