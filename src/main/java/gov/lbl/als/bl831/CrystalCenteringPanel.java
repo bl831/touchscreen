@@ -68,6 +68,7 @@ public class CrystalCenteringPanel extends JPanel {
             button.setBorderPainted(false);
             button.setFocusPainted(false);
             button.setContentAreaFilled(false);
+            button.setMargin(new Insets(0, 0, 0, 0));
         }
 
         if (hidden) {
@@ -98,14 +99,14 @@ public class CrystalCenteringPanel extends JPanel {
         Insets insets = defaultInsets();
         add(getPinPanel(), new GridBagConstraints(1, 0, 1, 1, 1, 0, GridBagConstraints.CENTER,
                 GridBagConstraints.HORIZONTAL, insets, 0, 0));
-        add(getLeftPanel(), new GridBagConstraints(0, 1, 1, 1, 0, 1,
-                GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, insets, 0, 0));
+        add(getLeftPanel(), new GridBagConstraints(0, 1, 1, 1, 0.08, 1,
+                GridBagConstraints.CENTER, GridBagConstraints.BOTH, insets, 0, 0));
         Insets videoInsets = new Insets(insets.top, insets.left,
                 insets.bottom + 15, insets.right);
         add(getVideoWidget(), new GridBagConstraints(1, 1, 1, 1, 1, 1,
                 GridBagConstraints.CENTER, GridBagConstraints.BOTH, videoInsets, 0, 0));
-        add(getRightPanel(), new GridBagConstraints(2, 1, 1, 1, 0, 1,
-                GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, insets, 0, 0));
+        add(getRightPanel(), new GridBagConstraints(2, 1, 1, 1, 0.08, 1,
+                GridBagConstraints.CENTER, GridBagConstraints.BOTH, insets, 0, 0));
         setSize(1013, 480);
     }
 
@@ -114,11 +115,11 @@ public class CrystalCenteringPanel extends JPanel {
             mLeftPanel = new JPanel(new GridBagLayout());
             mLeftPanel.setOpaque(false);
             Insets insets = defaultInsets();
-            mLeftPanel.add(getLightPanel(), new GridBagConstraints(0, 0, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.VERTICAL, insets,
+            mLeftPanel.add(getLightPanel(), new GridBagConstraints(0, 0, 1, 1, 1, 0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets,
                     0, 0));
-            mLeftPanel.add(getControlsPanel(), new GridBagConstraints(0, 1, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.VERTICAL, insets,
+            mLeftPanel.add(getControlsPanel(), new GridBagConstraints(0, 1, 1, 1, 1, 0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets,
                     0, 0));
         }
 
@@ -133,23 +134,23 @@ public class CrystalCenteringPanel extends JPanel {
             Insets insets = defaultInsets();
             mLightPanel.add(createButton(VirtualButton.Undo),
                     new GridBagConstraints(0, 0, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.NONE, insets, 0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0,
                     0));
             mLightPanel.add(createButton(VirtualButton.Park),
                     new GridBagConstraints(0, 1, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.NONE, insets, 0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0,
                     0));
             mLightPanel.add(createButton(VirtualButton.UnPark),
                     new GridBagConstraints(0, 2, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.NONE, insets, 0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0,
                     0));
             mLightPanel.add(getLightSliderButton(),
                     new GridBagConstraints(0, 3, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.NONE, insets,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets,
                     0, 0));
             mLightPanel.add(createButton(VirtualButton.Polarizer),
                     new GridBagConstraints(0, 4, 1, 1, 0, 0,
-                    GridBagConstraints.BASELINE_TRAILING, GridBagConstraints.NONE, insets, 0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0,
                     0));
         }
 
@@ -237,8 +238,8 @@ public class CrystalCenteringPanel extends JPanel {
             mRightPanel.setOpaque(false);
 
             Insets insets = defaultInsets();
-            mRightPanel.add(getAnglePanel(), new GridBagConstraints(0, 0, 1, 1, 0, 1,
-                    GridBagConstraints.BASELINE_LEADING, GridBagConstraints.VERTICAL, insets,
+            mRightPanel.add(getAnglePanel(), new GridBagConstraints(0, 0, 1, 1, 1, 1,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets,
                     0, 0));
         }
 
@@ -288,28 +289,47 @@ public class CrystalCenteringPanel extends JPanel {
 
     private JPanel getArrowPanel() {
         if (mArrowPanel == null) {
-            mArrowPanel = new JPanel(new GridBagLayout());
+            mArrowPanel = new JPanel();
             mArrowPanel.setOpaque(false);
+            mArrowPanel.setLayout(new javax.swing.BoxLayout(
+                    mArrowPanel, javax.swing.BoxLayout.Y_AXIS));
 
             Insets insets = defaultInsets();
-            mArrowPanel.add(createButton(VirtualButton.MoveUp),
-                    new GridBagConstraints(0, 0, 2, 1, 0, 0,
-                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0, 0));
-            mArrowPanel.add(createButton(VirtualButton.MoveLeft),
-                    new GridBagConstraints(0, 1, 1, 1, 0, 0,
-                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0, 0));
-            mArrowPanel.add(createButton(VirtualButton.MoveRight),
-                    new GridBagConstraints(1, 1, 1, 1, 0, 0,
-                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0, 0));
-            mArrowPanel.add(createButton(VirtualButton.MoveDown),
-                    new GridBagConstraints(0, 2, 2, 1, 0, 0,
-                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0, 0));
-            mArrowPanel.add(createButton(VirtualButton.MoveIn),
-                    new GridBagConstraints(0, 3, 1, 1, 0, 0,
-                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0, 0));
-            mArrowPanel.add(createButton(VirtualButton.MoveOut),
-                    new GridBagConstraints(1, 3, 1, 1, 0, 0,
-                    GridBagConstraints.CENTER, GridBagConstraints.NONE, insets, 0, 0));
+            int gap = insets.top + insets.bottom;
+
+            JButton upBtn = createButton(VirtualButton.MoveUp);
+            JButton leftBtn = createButton(VirtualButton.MoveLeft);
+            JButton rightBtn = createButton(VirtualButton.MoveRight);
+            JButton downBtn = createButton(VirtualButton.MoveDown);
+            JButton inBtn = createButton(VirtualButton.MoveIn);
+            JButton outBtn = createButton(VirtualButton.MoveOut);
+
+            upBtn.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+            downBtn.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+
+            JPanel midRow = new JPanel(new java.awt.FlowLayout(
+                    java.awt.FlowLayout.CENTER, gap, 0));
+            midRow.setOpaque(false);
+            midRow.add(leftBtn);
+            midRow.add(rightBtn);
+            midRow.setMaximumSize(midRow.getPreferredSize());
+            midRow.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+
+            JPanel tiltRow = new JPanel(new java.awt.FlowLayout(
+                    java.awt.FlowLayout.CENTER, gap, 0));
+            tiltRow.setOpaque(false);
+            tiltRow.add(inBtn);
+            tiltRow.add(outBtn);
+            tiltRow.setMaximumSize(tiltRow.getPreferredSize());
+            tiltRow.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+
+            mArrowPanel.add(upBtn);
+            mArrowPanel.add(javax.swing.Box.createVerticalStrut(gap));
+            mArrowPanel.add(midRow);
+            mArrowPanel.add(javax.swing.Box.createVerticalStrut(gap));
+            mArrowPanel.add(downBtn);
+            mArrowPanel.add(javax.swing.Box.createVerticalStrut(gap));
+            mArrowPanel.add(tiltRow);
         }
 
         return mArrowPanel;

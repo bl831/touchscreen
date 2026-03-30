@@ -73,6 +73,16 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>**/*.webm</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>**/*.webm</include>
+                </includes>
             </resource>
         </resources>
 

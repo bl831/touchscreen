@@ -50,7 +50,7 @@ public interface ClickSink {
     void heartbeat();
 
     /**
-     * Creates a no-op ClickSink that discards all events. Used in simulate
+     * Creates a no-op ClickSink that discards all events. Used in dev-offline
      * mode when there is no DCSS connection.
      */
     static ClickSink noOp() {

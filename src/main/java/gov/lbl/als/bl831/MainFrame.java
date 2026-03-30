@@ -21,7 +21,7 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 import gov.lbl.als.bl831.video.FFmpegVideoSource;
-import gov.lbl.als.bl831.video.SimulateVideoSource;
+import gov.lbl.als.bl831.video.SampleVideoSource;
 import picocli.CommandLine;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
@@ -129,21 +129,21 @@ public class MainFrame extends JFrame {
         }
 
         try {
-            if (!config.isSimulate()
+            if (!config.isDevOffline()
                     && (config.getVideoUri() == null
                         || config.getVideoUri().isEmpty())) {
                 System.err.println("Video source URI is required. Use -v or --video to specify.");
                 System.exit(1);
             }
 
-            final VideoSource videoSource = config.isSimulate()
-                    ? new SimulateVideoSource()
+            final VideoSource videoSource = config.isDevOffline()
+                    ? new SampleVideoSource()
                     : FFmpegVideoSource.fromUri(config.getVideoUri());
 
             final ClickSink clickSink;
             final InputStream inputStream;
 
-            if (config.isSimulate()) {
+            if (config.isDevOffline()) {
                 clickSink = ClickSink.noOp();
                 inputStream = null;
             } else {
@@ -170,7 +170,7 @@ public class MainFrame extends JFrame {
                     frame.pack();
                     frame.setLocationRelativeTo(null);
                     frame.setVisible(true);
-                    if (config.isSimulate()) {
+                    if (config.isDevOffline()) {
                         setupSimulatedBeam(frame, videoSource);
                     }
                 }

@@ -55,8 +55,8 @@ public class CommandLineArgs {
     @Option(names = {"-l", "--list-v4l2"}, description = "list available V4L2 video capture URIs.")
     private boolean listV4l2 = false;
 
-    @Option(names = {"-s", "--simulate"}, description = "use simulated video source and do not connect to touch server.")
-    private boolean simulate = false;
+    @Option(names = {"-s", "--dev-offline"}, description = "use offline video playback and do not connect to touch server.")
+    private boolean devOffline = false;
 
     @Option(names = {"-e", "--emulate"}, description = "emulate old-style touch coordinates for output.")
     private boolean emulate = false;
@@ -87,8 +87,8 @@ public class CommandLineArgs {
         return listV4l2;
     }
 
-    public boolean getSimulate() {
-        return simulate;
+    public boolean getDevOffline() {
+        return devOffline;
     }
 
     public boolean getEmulate() {

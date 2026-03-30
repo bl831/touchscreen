@@ -20,7 +20,7 @@ public class Config {
     private final String  mVideoUri;
     private final String  mTouchHostname;
     private final int     mTouchPort;
-    private final boolean mSimulate;
+    private final boolean mDevOffline;
     private final boolean mEmulate;
     private final String  mWindow;
     private final Object  mInterpolationHint;
@@ -30,7 +30,7 @@ public class Config {
     private final boolean mBorderlessButtons;
 
     public Config(String videoUri, String touchHostname, int touchPort,
-                  boolean simulate, boolean emulate, String window,
+                  boolean devOffline, boolean emulate, String window,
                   Object interpolationHint,
                   Map<VirtualButton, ButtonConfig> buttonOverrides,
                   Color background, Color borderColor,
@@ -38,7 +38,7 @@ public class Config {
         mVideoUri = videoUri;
         mTouchHostname = touchHostname;
         mTouchPort = touchPort;
-        mSimulate = simulate;
+        mDevOffline = devOffline;
         mEmulate = emulate;
         mWindow = window;
         mInterpolationHint = interpolationHint;
@@ -93,7 +93,7 @@ public class Config {
         }
 
         return new Config(cla.getVideoUri(), touchHostname, touchPort,
-                cla.getSimulate(), cla.getEmulate(), cla.getWindow(),
+                cla.getDevOffline(), cla.getEmulate(), cla.getWindow(),
                 cla.getInterpolation(), buttonOverrides,
                 background, borderColor, borderlessButtons);
     }
@@ -221,10 +221,10 @@ public class Config {
     }
 
     /**
-     * @return <code>true</code> if running in simulate mode.
+     * @return <code>true</code> if running in dev-offline mode.
      */
-    public boolean isSimulate() {
-        return mSimulate;
+    public boolean isDevOffline() {
+        return mDevOffline;
     }
 
     /**

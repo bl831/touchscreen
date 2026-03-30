@@ -3,6 +3,7 @@ package gov.lbl.als.bl831.video;
 import java.awt.Image;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -93,7 +94,18 @@ public class FFmpegVideoSource implements VideoSource {
      */
     public FFmpegVideoSource(URI uri) {
         super();
-        mCaptureThread = new VideoCaptureThread(uri);
+        mCaptureThread = new VideoCaptureThread(uri, false);
+    }
+
+    /**
+     * Constructor for file-based playback with optional looping.
+     *
+     * @param file The video file to play
+     * @param loop If true, restart playback when end-of-file is reached
+     */
+    public FFmpegVideoSource(File file, boolean loop) {
+        super();
+        mCaptureThread = new VideoCaptureThread(file, loop);
     }
 
     /**
@@ -109,6 +121,8 @@ public class FFmpegVideoSource implements VideoSource {
         private final int height;
         private final int fps;
         private final boolean isUrl;
+        private final boolean loop;
+        private final File file;
 
         private Image image;
 
@@ -131,20 +145,42 @@ public class FFmpegVideoSource implements VideoSource {
             this.height = height;
             this.fps = fps;
             this.isUrl = false;
+            this.loop = false;
+            this.file = null;
         }
 
         /**
          * Constructor for URL-based capture (e.g. Axis HTTP MJPEG streams).
          *
-         * @param uri The URI of the MJPEG stream
+         * @param uri  The URI of the MJPEG stream
+         * @param loop If true, restart playback at end-of-file
          */
-        public VideoCaptureThread(URI uri) {
+        public VideoCaptureThread(URI uri, boolean loop) {
             this.source = uri.toString();
             this.fourccPixelFormat = null;
             this.width = 0;
             this.height = 0;
             this.fps = 0;
             this.isUrl = true;
+            this.loop = loop;
+            this.file = null;
+        }
+
+        /**
+         * Constructor for file-based playback with optional looping.
+         *
+         * @param file The video file to play
+         * @param loop If true, restart playback at end-of-file
+         */
+        public VideoCaptureThread(File file, boolean loop) {
+            this.source = file.getAbsolutePath();
+            this.fourccPixelFormat = null;
+            this.width = 0;
+            this.height = 0;
+            this.fps = 0;
+            this.isUrl = false;
+            this.loop = loop;
+            this.file = file;
         }
 
         /**
@@ -157,8 +193,10 @@ public class FFmpegVideoSource implements VideoSource {
             try {
                 if (isUrl) {
                     startUrlCapture(source);
-                } else {
+                } else if (fourccPixelFormat != null || width > 0) {
                     startDeviceCapture(source, fourccPixelFormat, width, height, fps);
+                } else {
+                    startFileCapture(source);
                 }
             } catch (IOException e) {
                 System.err.printf("Video capture error: %s%n", e.getMessage());
@@ -189,11 +227,41 @@ public class FFmpegVideoSource implements VideoSource {
          * @throws IOException If an I/O error occurs during capture
          */
         private void startUrlCapture(String url) throws IOException {
-            try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(url)) {
-                grabber.setOption("fflags", "nobuffer");
-                grabber.start();
-                captureLoop(grabber);
-            }
+            do {
+                try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(url)) {
+                    grabber.setOption("fflags", "nobuffer");
+                    grabber.start();
+                    captureLoop(grabber);
+                }
+            } while (loop && running);
+        }
+
+        private void startFileCapture(String path) throws IOException {
+            Java2DFrameConverter fileConverter = new Java2DFrameConverter();
+            do {
+                try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(file)) {
+                    grabber.start();
+                    double fps = grabber.getFrameRate();
+                    long delay = fps > 0 ? (long) (1000.0 / fps) : 40;
+                    Frame f;
+                    while (!Thread.currentThread().isInterrupted()
+                            && running
+                            && (f = grabber.grabImage()) != null) {
+                        BufferedImage img = fileConverter.convert(f);
+                        if (img != null) {
+                            this.image = img;
+                            if (listener != null) {
+                                SwingUtilities.invokeLater(
+                                        () -> listener.actionPerformed(null));
+                            }
+                        }
+                        Thread.sleep(delay);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            } while (loop && running);
         }
 
         /**
