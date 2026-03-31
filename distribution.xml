@@ -8,7 +8,21 @@
     <formats>
         <format>zip</format>
     </formats>
-    <includeBaseDirectory>false</includeBaseDirectory>
+    <includeBaseDirectory>true</includeBaseDirectory>
+
+    <files>
+        <!-- JARs with version-stripped names -->
+        <file>
+            <source>${project.build.directory}/${project.artifactId}-${project.version}.jar</source>
+            <outputDirectory>lib</outputDirectory>
+            <destName>${project.artifactId}.jar</destName>
+        </file>
+        <file>
+            <source>${project.build.directory}/${project.artifactId}-${project.version}-bundled.jar</source>
+            <outputDirectory>lib</outputDirectory>
+            <destName>${project.artifactId}-bundled.jar</destName>
+        </file>
+    </files>
 
     <fileSets>
 
@@ -18,16 +32,7 @@
             <outputDirectory>.</outputDirectory>
             <includes>
                 <include>LICENSE</include>
-                <include>README</include>
-            </includes>
-        </fileSet>
-
-        <!-- The JAR we just built -->
-        <fileSet>
-            <directory>${project.build.directory}</directory>
-            <outputDirectory>lib</outputDirectory>
-            <includes>
-                <include>*.jar</include>
+                <include>README.md</include>
             </includes>
         </fileSet>
 

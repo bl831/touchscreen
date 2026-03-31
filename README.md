@@ -100,7 +100,7 @@ Each button can have a custom icon, pressed icon, command, or be hidden:
 ```properties
 button.ZoomIn.icon=ZoomIn.png
 button.ZoomIn.pressed=ZoomIn-pressed.png
-button.ZoomIn.command=some_dcss_command
+button.ZoomIn.command=some_touch_command
 button.ZoomIn.hidden=true
 ```
 
