@@ -10,14 +10,18 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.swing.JPanel;
+import javax.swing.Timer;
 
 /**
  *
@@ -38,8 +42,12 @@ public class VideoWidget extends JPanel {
     private double                    mBeamH           = 0.0;
     private double                    mBeamW           = 0.0;
     private int                       mShape           = kRectangle;
+    private final Stroke              mStroke2         = new BasicStroke(2);
     private final Stroke              mStroke3         = new BasicStroke(3);
     private final Stroke              mStroke5         = new BasicStroke(5);
+    private BufferedImage             mScaledImage;
+    private volatile boolean          mImageDirty;
+    private boolean                   mResizing;
 
     public VideoWidget(ClickSink clickSink, Config config) {
         super();
@@ -51,6 +59,20 @@ public class VideoWidget extends JPanel {
         }
         mAliasHints = new HashMap<Object, Object>(1);
         mAliasHints.put(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        Timer resizeTimer = new Timer(150, e -> {
+            mResizing = false;
+            mImageDirty = true;
+            repaint();
+        });
+        resizeTimer.setRepeats(false);
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                mResizing = true;
+                resizeTimer.restart();
+            }
+        });
 
         addMouseListener(new MouseAdapter() {
 
@@ -87,10 +109,10 @@ public class VideoWidget extends JPanel {
      * {@inheritDoc}
      */
     @Override
-    public void paint(Graphics g) {
-        super.paint(g);
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
 
-        if (mCurrentImage != null) {
+        if (mCurrentImage != null && !mResizing) {
             int imageWidth = mCurrentImage.getWidth(this);
             int imageHeight = mCurrentImage.getHeight(this);
             if (imageWidth <= 0 || imageHeight <= 0) {
@@ -103,16 +125,33 @@ public class VideoWidget extends JPanel {
             int xOffset = (size.width - destDim.width) / 2;
             int yOffset = (size.height - destDim.height) / 2;
             Graphics2D g2d = (Graphics2D) g;
-            if (!mInterpHints.isEmpty()) {
-                g2d.addRenderingHints(mInterpHints);
+
+            if (mImageDirty) {
+                mImageDirty = false;
+                if (mScaledImage == null
+                        || mScaledImage.getWidth() != destDim.width
+                        || mScaledImage.getHeight() != destDim.height) {
+                    mScaledImage = new BufferedImage(
+                            destDim.width, destDim.height, BufferedImage.TYPE_INT_RGB);
+                }
+                Graphics2D sg = mScaledImage.createGraphics();
+                if (!mInterpHints.isEmpty()) {
+                    sg.addRenderingHints(mInterpHints);
+                }
+                sg.drawImage(mCurrentImage, 0, 0, destDim.width, destDim.height,
+                        0, 0, imageWidth, imageHeight, null);
+                sg.dispose();
             }
-            g.drawImage(mCurrentImage, xOffset, yOffset, destDim.width + xOffset,
-                    destDim.height + yOffset, 0, 0, imageWidth, imageHeight, this);
+
+            if (mScaledImage != null) {
+                g2d.drawImage(mScaledImage, xOffset, yOffset,
+                        destDim.width, destDim.height, null);
+            }
             mVideoRect = new Rectangle(new Point(xOffset, yOffset), destDim);
 
             if (mConfig.getBorderColor() != null) {
                 g2d.setPaint(mConfig.getBorderColor());
-                g2d.setStroke(new BasicStroke(2));
+                g2d.setStroke(mStroke2);
                 g2d.drawRect(mVideoRect.x, mVideoRect.y,
                         mVideoRect.width - 1, mVideoRect.height - 1);
             }
@@ -194,7 +233,8 @@ public class VideoWidget extends JPanel {
     public void setImage(Image newImage) {
         Image oldImage = mCurrentImage;
         mCurrentImage = newImage;
-        if (oldImage != null) {
+        mImageDirty = true;
+        if (oldImage != null && oldImage != newImage) {
             oldImage.flush();
         }
         repaint();
