@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crystallographic Analysis System - Theme Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* ── Theme colors (edit these to create new themes) ── */
+    --c:   #00e5ff;       /* primary / cyan */
+    --grn: #00ff9f;       /* green / nav arrows */
+    --red: #ff3366;       /* red / park, lo-mag */
+    --amb: #ffb700;       /* amber / light, 180, tilt */
+    --pur: #cc44ff;       /* purple / polarize */
+    --sal: #ff6688;       /* salmon / +10, -10 */
+    --bg:  #000810;       /* background */
+
+    /* ── Target resolution: 1920x1080 ── */
+
+    /* Panel width: 187px = 9.74vw */
+    --panel-w: 9.74vw;
+    --panel-gap: 1.6vw;
+
+    /* Right panel buttons: 187x97 */
+    --btn-h: 8.98vh;
+    --btn-gap: 1.0vh;
+    --btn-fs: clamp(10px, 1.1vw, 20px);
+
+    /* Left panel buttons: 187x70 */
+    --btn-h-left: 6.48vh;
+    --btn-gap-left: 0.4vh;
+
+    /* Arrow buttons: 65x65 */
+    --nav-w: 3.39vw;
+    --nav-h: 6.02vh;
+
+    /* Tilt buttons: same as arrows */
+    --tilt-h: 6.02vh;
+
+    /* Light box: 187x277 */
+    --light-h: 25.65vh;
+
+    /* Pin strip: 161x75 */
+    --pin-h: 6.94vh;
+    --pin-w: 8.39vw;
+
+    /* Fonts */
+    --font-hud: 'Orbitron', monospace;
+    --font-mono: 'Share Tech Mono', monospace;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: var(--font-hud);
+    color: var(--c);
+  }
+
+  .frame {
+    position: relative;
+    width: 100vw; height: 100vh;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+  }
+  .frame::before {
+    content: '';
+    position: absolute; inset: 0;
+    border: 1.5px solid var(--c);
+    box-shadow:
+      0 0 6px var(--c),
+      0 0 18px var(--c),
+      0 0 40px rgba(0,229,255,0.5),
+      0 0 80px rgba(0,229,255,0.2),
+      inset 0 0 20px rgba(0,229,255,0.06);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .corner { position: absolute; width: 2vw; height: 2vw; z-index: 101; pointer-events: none; }
+  .corner::before, .corner::after {
+    content: ''; position: absolute;
+    background: var(--c);
+    box-shadow: 0 0 8px var(--c), 0 0 20px rgba(0,229,255,0.6);
+  }
+  .corner::before { width: 100%; height: 2px; top: 0; }
+  .corner::after  { width: 2px; height: 100%; top: 0; }
+  .corner.tl { top: 0; left: 0; }
+  .corner.tr { top: 0; right: 0; transform: scaleX(-1); }
+  .corner.bl { bottom: 0; left: 0; transform: scaleY(-1); }
+  .corner.br { bottom: 0; right: 0; transform: scale(-1); }
+
+  /* PIN STRIP */
+  .pin-strip {
+    height: var(--pin-h);
+    display: flex; align-items: center; justify-content: center;
+    gap: 1.5vw; padding: 1.2vh 13vw 0;
+    flex-shrink: 0;
+  }
+  .pin-widget {
+    flex: 1; max-width: var(--pin-w);
+    height: calc(var(--pin-h) - 0.8vh);
+    border: none;
+    background: transparent;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    padding: 2px 4px;
+  }
+  .pin-widget svg.pin-drawing { width: 100%; flex: 1; position: relative; z-index: 2; }
+  .pin-widget svg.pin-border { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .pin-label {
+    font-size: 14px;
+    font-family: var(--font-hud); font-weight: 900;
+    color: #fff; text-shadow: 0 0 6px var(--c), 0 0 12px rgba(255,255,255,0.2);
+    letter-spacing: 0.08em;
+    line-height: 1;
+    position: relative; z-index: 2;
+    margin-bottom: 5px;
+  }
+
+  /* MAIN LAYOUT */
+  .main-row { flex: 1; display: flex; min-height: 0; }
+
+  .side-panel {
+    width: calc(var(--panel-w) + var(--panel-gap) * 2);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 0 var(--panel-gap);
+    position: relative; flex-shrink: 0;
+  }
+
+  .btn-group {
+    display: flex; flex-direction: column;
+    align-items: center; gap: var(--btn-gap); width: 100%;
+  }
+
+  /* Left panel uses tighter spacing and shorter buttons */
+  .side-panel.left .btn-group { gap: var(--btn-gap-left); }
+  .side-panel.left .hud-btn { height: var(--btn-h-left); }
+
+  /* HUD BUTTONS */
+  .hud-btn {
+    position: relative;
+    width: var(--panel-w); height: var(--btn-h);
+    background: transparent; border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-hud); font-weight: 900;
+    letter-spacing: 0.05em; color: #fff;
+    flex-shrink: 0;
+  }
+  .hud-btn:focus, .arrow-btn:focus, .pin-widget:focus, .light-box:focus,
+  .hud-btn:focus-visible, .arrow-btn:focus-visible, .pin-widget:focus-visible, .light-box:focus-visible {
+    outline: none !important; box-shadow: none !important;
+  }
+  .hud-btn svg.btn-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; overflow: visible;
+  }
+  .hud-btn .btn-label { position: relative; z-index: 2; pointer-events: none; }
+
+  /* ARROW BUTTONS */
+  .nav-cluster { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nav-mid, .nav-tilt { display: flex; gap: 4px; }
+
+  .arrow-btn {
+    position: relative;
+    width: var(--nav-w); height: var(--nav-h);
+    background: transparent; border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; overflow: visible;
+  }
+  .arrow-btn svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; overflow: visible;
+  }
+  .tilt-btn { height: var(--tilt-h) !important; }
+
+  /* LIGHT BOX */
+  .light-box {
+    width: var(--panel-w); height: var(--light-h);
+    position: relative; flex-shrink: 0; cursor: pointer;
+  }
+  .light-box svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .light-label {
+    position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-hud); font-weight: 900;
+    font-size: 14px; color: #fff;
+    text-shadow: 0 0 4px var(--amb), 0 0 10px rgba(255,255,255,0.25);
+    letter-spacing: 0.1em; z-index: 2; white-space: nowrap;
+  }
+
+  /* VIDEO */
+  .video-area {
+    flex: 1; position: relative; min-width: 0;
+    display: flex; align-items: stretch; padding: 1.5vh 0 15px 0;
+  }
+  .video-placeholder {
+    flex: 1; background: #080f1a;
+    position: relative; overflow: hidden;
+  }
+  .video-placeholder::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .video-frame {
+    position: absolute; inset: 0;
+    border: 2px solid var(--c);
+    box-shadow: 0 0 18px rgba(0,229,255,0.5), inset 0 0 18px rgba(0,229,255,0.03);
+    pointer-events: none; z-index: 5;
+  }
+  .v-corner { position: absolute; width: 2vw; height: 2vw; z-index: 6; pointer-events: none; }
+  .v-corner::before, .v-corner::after {
+    content: ''; position: absolute;
+    background: var(--c);
+    box-shadow: 0 0 8px var(--c), 0 0 20px rgba(0,229,255,0.6);
+  }
+  .v-corner::before { width: 100%; height: 3px; top: 0; }
+  .v-corner::after  { width: 3px; height: 100%; top: 0; }
+  .v-corner.tl { top: -1px; left: -1px; }
+  .v-corner.tr { top: -1px; right: -1px; transform: scaleX(-1); }
+  .v-corner.bl { bottom: -1px; left: -1px; transform: scaleY(-1); }
+  .v-corner.br { bottom: -1px; right: -1px; transform: scale(-1); }
+
+  .feed-label {
+    position: absolute; top: 10px; left: 12px;
+    font-family: var(--font-mono); font-size: clamp(7px, 0.55vw, 11px);
+    color: var(--c); opacity: 0.45; z-index: 7; letter-spacing: 0.12em;
+  }
+  .rec-label {
+    position: absolute; top: 10px; right: 12px;
+    font-family: var(--font-mono); font-size: clamp(7px, 0.55vw, 11px);
+    color: var(--grn); text-shadow: 0 0 8px var(--grn);
+    z-index: 7; letter-spacing: 0.1em;
+  }
+  .rec-dot { animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .reticle {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 4; pointer-events: none;
+  }
+  .reticle svg { width: 220px; height: 220px; opacity: 0.3; }
+
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,229,255,0.25), transparent);
+    animation: scan 4s linear infinite; z-index: 3; pointer-events: none;
+  }
+  @keyframes scan { 0%{top:0%} 100%{top:100%} }
+
+  /* STATUS BAR */
+  .status-bar {
+    height: 3.2vh; min-height: 22px;
+    display: flex; align-items: center; padding: 0 1.5vw;
+    gap: 2vw; flex-shrink: 0;
+  }
+  .status-item {
+    font-family: var(--font-mono); font-size: clamp(7px, 0.5vw, 10px);
+    color: var(--c); opacity: 0.4; letter-spacing: 0.1em; white-space: nowrap;
+  }
+  .status-connected { color: var(--grn); text-shadow: 0 0 8px var(--grn); opacity: 0.8; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <!-- PIN STRIP -->
+  <div class="pin-strip">
+    <div class="pin-widget" data-len="24"><div class="pin-label">24</div></div>
+    <div class="pin-widget" data-len="21"><div class="pin-label">21</div></div>
+    <div class="pin-widget" data-len="20"><div class="pin-label">20</div></div>
+    <div class="pin-widget" data-len="18"><div class="pin-label">18</div></div>
+    <div class="pin-widget" data-len="14"><div class="pin-label">14</div></div>
+    <div class="pin-widget" data-len="12"><div class="pin-label">12</div></div>
+    <div class="pin-widget" data-len="10"><div class="pin-label">10</div></div>
+  </div>
+
+  <!-- MAIN ROW -->
+  <div class="main-row">
+
+    <!-- LEFT PANEL -->
+    <div class="side-panel left">
+      <div class="btn-group">
+        <button class="hud-btn" data-col="#00e5ff"><span class="btn-label">UNDO</span></button>
+        <button class="hud-btn" data-col="#ff3366"><span class="btn-label">PARK</span></button>
+        <button class="hud-btn" data-col="#00ff9f"><span class="btn-label">UN-PARK</span></button>
+
+        <!-- Light box -->
+        <div class="light-box" data-col="#ffb700">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="ambBloom" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <linearGradient id="triGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ffb700" stop-opacity="1.0"/>
+                <stop offset="100%" stop-color="#ff6600" stop-opacity="0.02"/>
+              </linearGradient>
+            </defs>
+            <!-- Chamfered border with inset for glow breathing room -->
+            <polygon points="14,5 86,5 95,8 95,92 86,95 14,95 5,92 5,8" fill="none" stroke="#ffb700" stroke-width="8" opacity="0.12" filter="url(#ambBloom)"/>
+            <polygon points="14,5 86,5 95,8 95,92 86,95 14,95 5,92 5,8" fill="none" stroke="#ffb700" stroke-width="4" opacity="0.22" filter="url(#ambBloom)"/>
+            <polygon points="14,5 86,5 95,8 95,92 86,95 14,95 5,92 5,8" fill="#ffb700" opacity="0.06"/>
+            <polygon points="14,5 86,5 95,8 95,92 86,95 14,95 5,92 5,8" fill="none" stroke="#ffb700" stroke-width="0.8" opacity="0.85"/>
+            <polygon points="16,20 84,20 50,93" fill="url(#triGrad)" opacity="0.9"/>
+          </svg>
+          <span class="light-label">LIGHT</span>
+        </div>
+
+        <button class="hud-btn" data-col="#cc44ff"><span class="btn-label">POLARIZE</span></button>
+
+        <!-- Nav cluster -->
+        <div class="nav-cluster">
+          <button class="arrow-btn" data-col="#00ff9f" data-arrow="50,25 78,72 22,72"></button>
+          <div class="nav-mid">
+            <button class="arrow-btn" data-col="#00ff9f" data-arrow="25,50 72,22 72,78"></button>
+            <button class="arrow-btn" data-col="#00ff9f" data-arrow="75,50 28,22 28,78"></button>
+          </div>
+          <button class="arrow-btn" data-col="#00ff9f" data-arrow="50,75 78,28 22,28"></button>
+          <div class="nav-tilt">
+            <button class="arrow-btn tilt-btn" data-col="#ffb700" data-arrow="50,25 78,72 22,72"></button>
+            <button class="arrow-btn tilt-btn" data-col="#ffb700" data-arrow="50,75 78,28 22,28"></button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VIDEO AREA -->
+    <div class="video-area">
+      <div class="video-placeholder">
+        <div class="video-frame"></div>
+        <div class="v-corner tl"></div><div class="v-corner tr"></div>
+        <div class="v-corner bl"></div><div class="v-corner br"></div>
+        <div class="feed-label">SPECIMEN FEED  //  LIVE</div>
+        <div class="rec-label"><span class="rec-dot">●</span> REC</div>
+        <div class="scan-line"></div>
+        <div class="reticle">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="50" fill="none" stroke="#00e5ff" stroke-width="1"/>
+            <circle cx="100" cy="100" r="90" fill="none" stroke="#00e5ff" stroke-width="0.6"/>
+            <line x1="78" y1="100" x2="68" y2="100" stroke="#00e5ff" stroke-width="1"/>
+            <line x1="122" y1="100" x2="132" y2="100" stroke="#00e5ff" stroke-width="1"/>
+            <line x1="100" y1="78" x2="100" y2="68" stroke="#00e5ff" stroke-width="1"/>
+            <line x1="100" y1="122" x2="100" y2="132" stroke="#00e5ff" stroke-width="1"/>
+          </svg>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.08;font-size:clamp(12px,1.2vw,22px);letter-spacing:0.3em;font-family:var(--font-mono);">VIDEO FEED</div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="side-panel right">
+      <div class="btn-group">
+        <button class="hud-btn" data-col="#00e5ff"><span class="btn-label">HI MAG</span></button>
+        <button class="hud-btn btn-num" data-col="#ff6688"><span class="btn-label">+10</span></button>
+        <button class="hud-btn btn-num" data-col="#00e5ff"><span class="btn-label">+90</span></button>
+        <button class="hud-btn btn-num" data-col="#ffb700"><span class="btn-label">180</span></button>
+        <button class="hud-btn btn-num" data-col="#00e5ff"><span class="btn-label">-90</span></button>
+        <button class="hud-btn btn-num" data-col="#ff6688"><span class="btn-label">-10</span></button>
+        <button class="hud-btn" data-col="#ff3366"><span class="btn-label">LO MAG</span></button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <span class="status-item">SYS OK</span>
+    <span class="status-item">MAG 20.0x</span>
+    <span class="status-item">ROT 000&deg;</span>
+    <span class="status-connected status-item">&#9679; CONNECTED</span>
+    <span class="status-item">TEMP 21.3&deg;C</span>
+    <span class="status-item">FPS 60</span>
+  </div>
+</div>
+
+<script>
+  // ── Pin wireframes ──
+  document.querySelectorAll('.pin-widget').forEach(pw => {
+    const len = parseInt(pw.dataset.len) || 10;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+
+    const col = '#00e5ff';
+    const cy = 25;
+
+    const baseW = 10, baseH = 16;
+    const coneW = 10, coneTipH = 1.5;
+    const needleLen = (len / 24) * 50;
+
+    const totalW = needleLen + coneW + baseW;
+    const viewW = totalW + 20;
+    const startX = (viewW - totalW) / 2;
+
+    const needleX1 = startX;
+    const needleX2 = needleX1 + needleLen;
+    const coneX2 = needleX2 + coneW;
+
+    svg.setAttribute('viewBox', `0 0 ${viewW} 50`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    svg.innerHTML = `
+      <line x1="${needleX1}" y1="${cy}" x2="${needleX2}" y2="${cy}"
+        stroke="${col}" stroke-width="2" opacity="0.95"/>
+      <polygon points="${needleX2},${cy - coneTipH} ${coneX2},${cy - baseH/2} ${coneX2},${cy + baseH/2} ${needleX2},${cy + coneTipH}"
+        fill="none" stroke="${col}" stroke-width="1.5" opacity="0.9"/>
+      <rect x="${coneX2}" y="${cy - baseH/2}" width="${baseW}" height="${baseH}"
+        fill="none" stroke="${col}" stroke-width="1.5" opacity="0.9"/>
+    `;
+    svg.classList.add('pin-drawing');
+    pw.insertBefore(svg, pw.firstChild);
+
+    // Chamfered border — thicker stroke, higher opacity
+    const borderId = 'pb' + Math.random().toString(36).slice(2,7);
+    const i = 5, o = 95, n = 9;
+    const pts = `${i+n},${i} ${o-n},${i} ${o},${i+n} ${o},${o-n} ${o-n},${o} ${i+n},${o} ${i},${o-n} ${i},${i+n}`;
+    const borderSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    borderSvg.classList.add('pin-border');
+    borderSvg.setAttribute('preserveAspectRatio','none');
+    borderSvg.setAttribute('viewBox','0 0 100 100');
+    borderSvg.innerHTML = `
+      <defs>
+        <filter id="${borderId}" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <polygon points="${pts}" fill="none" stroke="#00e5ff" stroke-width="8" opacity="0.12" filter="url(#${borderId})"/>
+      <polygon points="${pts}" fill="none" stroke="#00e5ff" stroke-width="4" opacity="0.22" filter="url(#${borderId})"/>
+      <polygon points="${pts}" fill="#00e5ff" opacity="0.06"/>
+      <polygon points="${pts}" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.95"/>
+    `;
+    pw.insertBefore(borderSvg, pw.firstChild);
+  });
+
+  // ── HUD buttons with inset notched borders ──
+  document.querySelectorAll('.hud-btn').forEach(btn => {
+    const col = btn.dataset.col || '#00e5ff';
+    const id  = 'g' + Math.random().toString(36).slice(2,7);
+    const i = 5, o = 95, n = 9;
+    const pts = `${i+n},${i} ${o-n},${i} ${o},${i+n} ${o},${o-n} ${o-n},${o} ${i+n},${o} ${i},${o-n} ${i},${i+n}`;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('class','btn-svg');
+    svg.setAttribute('preserveAspectRatio','none');
+    svg.setAttribute('viewBox','0 0 100 100');
+    svg.innerHTML = `
+      <defs>
+        <filter id="${id}" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <polygon points="${pts}" fill="none" stroke="${col}" stroke-width="10" opacity="0.12" filter="url(#${id})"/>
+      <polygon points="${pts}" fill="none" stroke="${col}" stroke-width="5"  opacity="0.22" filter="url(#${id})"/>
+      <polygon points="${pts}" fill="${col}" opacity="0.11"/>
+      <polygon points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.95"/>
+    `;
+    btn.insertBefore(svg, btn.firstChild);
+    const label = btn.querySelector('.btn-label');
+    const isNum = btn.classList.contains('btn-num');
+    label.style.cssText = `
+      color:#fff;
+      text-shadow:0 0 4px ${col},0 0 10px rgba(255,255,255,0.25);
+      font-size:${isNum ? 'clamp(13px,1.45vw,26px)' : 'var(--btn-fs)'};
+      font-weight:900;letter-spacing:0.06em;
+    `;
+  });
+
+  // ── Arrow buttons with inset borders ──
+  document.querySelectorAll('.arrow-btn').forEach(btn => {
+    const col      = btn.dataset.col || '#00ff9f';
+    const arrowPts = btn.dataset.arrow || '50,25 78,72 22,72';
+    const id       = 'ag' + Math.random().toString(36).slice(2,7);
+    const i = 5, o = 95, n = 9;
+    const pts = `${i+n},${i} ${o-n},${i} ${o},${i+n} ${o},${o-n} ${o-n},${o} ${i+n},${o} ${i},${o-n} ${i},${i+n}`;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('preserveAspectRatio','none');
+    svg.setAttribute('viewBox','0 0 100 100');
+    svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;';
+    svg.innerHTML = `
+      <defs>
+        <filter id="${id}" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="3.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <polygon points="${pts}" fill="none" stroke="${col}" stroke-width="10" opacity="0.12" filter="url(#${id})"/>
+      <polygon points="${pts}" fill="none" stroke="${col}" stroke-width="5"  opacity="0.22" filter="url(#${id})"/>
+      <polygon points="${pts}" fill="${col}" opacity="0.11"/>
+      <polygon points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.95"/>
+      <polygon points="${arrowPts}" fill="${col}" opacity="0.5" filter="url(#${id})"/>
+      <polygon points="${arrowPts}" fill="#ffffff" opacity="0.95"/>
+    `;
+    btn.appendChild(svg);
+  });
+
+  // ── Press glow: brightness 1.5 for pins, 1.6 for buttons ──
+  document.querySelectorAll('.hud-btn, .arrow-btn, .pin-widget, .light-box').forEach(el => {
+    const col = el.dataset.col || '#00e5ff';
+    const isLight = el.classList.contains('light-box');
+    const isPin = el.classList.contains('pin-widget');
+    const on  = () => {
+      if (isLight) {
+        el.style.filter = 'brightness(1.2)';
+      } else if (isPin) {
+        el.style.filter = `brightness(1.5) drop-shadow(0 0 10px ${col})`;
+      } else {
+        el.style.filter = `brightness(1.6) drop-shadow(0 0 10px ${col})`;
+      }
+    };
+    const off = () => { el.style.filter = ''; };
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+    el.addEventListener('touchstart', on, { passive: true });
+    el.addEventListener('touchend', off);
+    el.addEventListener('touchcancel', off);
+  });
+
+  // Ensure SVGs don't block pointer events
+  document.querySelectorAll('.arrow-btn svg, .hud-btn svg, .light-box svg').forEach(svg => {
+    svg.style.pointerEvents = 'none';
+  });
+</script>
+</body>
+</html>

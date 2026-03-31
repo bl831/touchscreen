@@ -1,65 +1,133 @@
-# BL831 Touchscreen-based Crystal Centering System
+# BL831 Crystal Centering UI
 
-Java-based application designed for video capture and beam control for the BL831 beamline at the Advanced Light Source (ALS) at Lawrence Berkeley National Laboratory. The system provides a graphical interface for controlling video sources, managing camera operations, and performing beam alignment tasks.
+Touchscreen interface for video-based crystal centering at the BL831 beamline (Advanced Light Source, Lawrence Berkeley National Laboratory). Displays a live camera feed with beam overlay and provides controls for goniometer rotation, centering, zoom, pin selection, and light adjustment.
 
-The application features a main frame interface with video widgets for displaying camera feeds, crystal centering controls, and beam control functionality. It supports multiple video source types including Axis cameras and Video 4 Linux capture devices, with support for MJPEG streaming and touch emulation capabilities. The system includes components for persistent socket connections, virtual buttons, and crystal alignment controls to facilitate precise beam positioning and sample analysis.
+Video is captured via FFmpeg (Axis IP cameras or V4L2 devices). Button presses are translated to DCSS commands through a touch server.
 
-The software integrates with Java Media Framework (JMF) for media handling and uses custom libraries for network camera communication and image processing. It provides a comprehensive solution for laboratory video monitoring and beam control operations.
+## Install
 
-## Build Requirements
+Download the latest release zip from the [releases page](https://github.com/bl831/touchscreen/releases) and unzip:
 
-- Java Development Kit (JDK) 8 or higher
-- Maven 3.6 or higher
-- Java Media Framework (JMF) 2.1.1e
-- Linux system with X11 support (for touchscreen emulation)
-- Camera hardware (Axis cameras or V4L2 capture devices)
-- Network connectivity for remote camera access
+```bash
+unzip crystmntui-*-distribution.zip -d /opt/crystmntui
+```
 
-### Prerequisites Installation
+This gives you:
 
-#### Ubuntu Systems:
-1. Install JDK 8 or higher:
-   ```bash
-   sudo apt-get install openjdk-8-jdk
-   ```
+```
+/opt/crystmntui/
+  bin/crystmntui        # launcher script
+  lib/crystmntui-*-bundled.jar
+  examples/             # theme configs and assets
+```
 
-2. Install Maven:
-   ```bash
-   sudo apt-get install maven
-   ```
+Add `bin/` to your PATH or run directly: `/opt/crystmntui/bin/crystmntui`
 
-#### Rocky Linux Systems:
-1. Install JDK 8 or higher:
-   ```bash
-   sudo dnf install java-1.8.0-openjdk-devel
-   ```
+Requires JRE 11+.
 
-2. Install Maven:
-   ```bash
-   sudo dnf install maven
-   ```
+## Build from Source
 
-## Build Instructions
-### Building the Application
+Requires JDK 11+ and Maven 3.6+.
 
-1. Clone or download the repository
-2. Navigate to the project root directory
-3. Compile the project using Maven:
-   ```bash
-   mvn clean install
-   ```
-5. The built JAR file will be located in the `target` directory
+```bash
+mvn package
+```
 
+The bundled jar is written to `target/`.
 
-### Configuration
+## Usage
 
-The application uses configuration files located in the `etc/` directory:
-- `11-evtouch-elo.conf` - Touchscreen configuration
-- Additional configuration files may be required based on your specific hardware setup
+```bash
+crystmntui \
+  -v axis://host/axis-cgi/mjpg/video.cgi?camera=1 \
+  -t touch://hostname:14000
+```
 
-### Hardware Requirements
+Or launch directly with Java:
 
-- Touchscreen display (for user interaction)
-- Network cameras (Axis or similar)
-- V4L2 compatible video capture device (optional)
-- Stable network connection for camera streaming
+```bash
+java -jar crystmntui-*-bundled.jar \
+  -v axis://host/axis-cgi/mjpg/video.cgi?camera=1 \
+  -t touch://hostname:14000
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-v, --video` | Video source URI (`axis://` or `v4l2://`) |
+| `-t, --touch` | Touch server URI (`touch://hostname:port`) |
+| `-c, --config` | Path to config file |
+| `-w, --window` | Window size (`1920x1080`) or `full`. Default: `full` (undecorated kiosk mode) |
+| `-i, --interpolation` | Image scaling: `nearest`, `bilinear`, or `bicubic` |
+| `-e, --emulate` | Emulate old-style touch coordinates |
+| `-l, --list-v4l2` | List available V4L2 video capture URIs |
+
+### V4L2 example
+
+```bash
+crystmntui -v v4l2://video0/MJPG/640x480/30fps -t touch://localhost:14000
+```
+
+## Config Files
+
+A `.config` file is a Java properties file that controls theming and button overrides. Pass it with `-c`.
+
+### CLI defaults
+
+Config files can set defaults for CLI options using `cli.<long-flag-name>`. Command line flags override these.
+
+```properties
+cli.video=axis://host/axis-cgi/mjpg/video.cgi?camera=1
+cli.touch=touch://hostname:14000
+cli.window=1920x1080
+cli.emulate=false
+cli.interpolation=bilinear
+```
+
+### UI properties
+
+```properties
+ui.background=#000810
+ui.border-color=#00e5ff
+ui.borderless-buttons=true
+```
+
+### Button overrides
+
+Each button can have a custom icon, pressed icon, command, or be hidden:
+
+```properties
+button.ZoomIn.icon=ZoomIn.png
+button.ZoomIn.pressed=ZoomIn-pressed.png
+button.ZoomIn.command=some_dcss_command
+button.ZoomIn.hidden=true
+```
+
+Icon paths are resolved relative to the config file's directory. Available button names: `ZoomIn`, `ZoomOut`, `Plus10`, `Plus90`, `HalfTurn`, `Minus90`, `Minus10`, `Undo`, `Park`, `UnPark`, `Polarizer`, `Light`, `Pin24mm`..`Pin10mm`, `MoveUp`, `MoveDown`, `MoveLeft`, `MoveRight`, `MoveIn`, `MoveOut`, `Center`.
+
+The `Light` button acts as a vertical slider. The `Center` button maps to clicks on the video area.
+
+## Themes
+
+Two example themes are included under `examples/`:
+
+- **dark-neon** — Cyan neon glow on dark background
+- **arc-reactor** — Brushed metal with stamped beveled buttons
+
+Each theme directory contains a config file, button PNGs (normal and `-pressed` variants), and the HTML design file used to generate the assets.
+
+```bash
+crystmntui \
+  -v axis://host/axis-cgi/mjpg/video.cgi?camera=1 \
+  -t touch://hostname:14000 \
+  -c examples/arc-reactor/arc-reactor.config
+```
+
+## Hardware
+
+Linux only. V4L2 device access requires the `camerainfo` library (included).
+
+- **Axis IP cameras** — MJPEG streams via `axis://host/path?camera=N`
+- **V4L2 devices** — Local capture via `v4l2://deviceN/FORMAT/WxH/FPS`. Use `-l` to list available devices. Tested with [USB HDMI capture cards](https://www.amazon.com/dp/B0FR7QD83J).
+- **Touchscreen** — Any display; touch events are translated to DCSS commands via the touch server

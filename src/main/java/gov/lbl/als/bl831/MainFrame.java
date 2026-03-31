@@ -1,18 +1,30 @@
 package gov.lbl.als.bl831;
 
 import java.awt.BorderLayout;
-import java.awt.RenderingHints;
+import java.awt.Dimension;
+import java.awt.Image;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
+import gov.lbl.als.bl831.video.FFmpegVideoSource;
+import gov.lbl.als.bl831.video.SampleVideoSource;
+import picocli.CommandLine;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
 import willibert.NetCamLib.CameraException;
 
 public class MainFrame extends JFrame {
@@ -30,7 +42,12 @@ public class MainFrame extends JFrame {
                 videoWidget.setImage(videoSource.getImage());
             }
         });
-        videoSource.start();
+
+        try {
+            videoSource.start();
+        } catch (IOException ex) {
+            System.err.println("Error starting video service. " + ex.getMessage());
+        }
 
         //
         // Start the circle listener
@@ -44,17 +61,29 @@ public class MainFrame extends JFrame {
         CrystalCenteringPanel crystalCenteringPanel = getCrystalCenteringPanel(clickSink,
                 config);
         add(crystalCenteringPanel, BorderLayout.CENTER);
-        setSize(1680, 1050);
-        setUndecorated(true);
-        crystalCenteringPanel.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                "exit");
-        crystalCenteringPanel.getActionMap().put("exit", new AbstractAction() {
+        if (config.getBorderColor() != null) {
+            crystalCenteringPanel.setBorder(
+                    BorderFactory.createLineBorder(config.getBorderColor(), 2));
+        }
+        if (config.isFullScreen()) {
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            setSize(screenSize.width, screenSize.height);
+            setUndecorated(true);
+        } else {
+            setSize(config.getWindowWidth(), config.getWindowHeight());
+        }
 
+        AbstractAction exitAction = new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 System.exit(0);
             }
-        });
+        };
+        crystalCenteringPanel.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "exit");
+        crystalCenteringPanel.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK), "exit");
+        crystalCenteringPanel.getActionMap().put("exit", exitAction);
 
         return crystalCenteringPanel.getVideoWidget();
     }
@@ -73,14 +102,61 @@ public class MainFrame extends JFrame {
      * the designer. You can modify it as you like.
      */
     public static void main(String[] args) {
-        final Config config = parseArgs(args);
+
+        CommandLineArgs cla = new CommandLineArgs();
+        ParseResult parseResult = null;
         try {
-            final VideoSource videoSource = configCamera(config);
-            PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
-                    config.getDcssHostname(), config.getDcssPort()), 2000);
-            final ClickSink clickSink = new EmulateTouch(socket.getOutputStream(),
-                    config.isEmulate());
-            final InputStream inputStream = socket.getInputStream();
+            CommandLine cl = new CommandLine(cla);
+            parseResult = cl.parseArgs(args);
+            if (CommandLine.printHelpIfRequested(parseResult)) {
+                System.exit(0);
+            };
+        } catch (ParameterException ex) {
+            System.err.println(ex.getMessage() + System.lineSeparator());
+            ex.getCommandLine().usage(System.err);
+            System.exit(1);
+        }
+
+        final Config config = Config.fromCommandLine(cla, parseResult);
+
+        if (cla.getListV4l2()) {
+            try {
+                listAllV4L2Uris();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.exit(0);
+        }
+
+        try {
+            if (!config.isDevOffline()
+                    && (config.getVideoUri() == null
+                        || config.getVideoUri().isEmpty())) {
+                System.err.println("Video source URI is required. Use -v or --video to specify.");
+                System.exit(1);
+            }
+
+            final VideoSource videoSource = config.isDevOffline()
+                    ? new SampleVideoSource()
+                    : FFmpegVideoSource.fromUri(config.getVideoUri());
+
+            final ClickSink clickSink;
+            final InputStream inputStream;
+
+            if (config.isDevOffline()) {
+                clickSink = ClickSink.noOp();
+                inputStream = null;
+            } else {
+                if (config.getTouchHostname() == null) {
+                    System.err.println("Touch server URI is required. Use -t or --touch to specify.");
+                    System.exit(1);
+                }
+                PersistentSocket socket = new PersistentSocket(new InetSocketAddress(
+                        config.getTouchHostname(), config.getTouchPort()), 2000);
+                clickSink = new EmulateTouch(socket.getOutputStream(),
+                        config.isEmulate());
+                inputStream = socket.getInputStream();
+            }
 
             SwingUtilities.invokeLater(new Runnable() {
 
@@ -94,6 +170,9 @@ public class MainFrame extends JFrame {
                     frame.pack();
                     frame.setLocationRelativeTo(null);
                     frame.setVisible(true);
+                    if (config.isDevOffline()) {
+                        setupSimulatedBeam(frame, videoSource);
+                    }
                 }
             });
 
@@ -118,100 +197,60 @@ public class MainFrame extends JFrame {
             ping.start();
 
         } catch (CameraException e1) {
-            System.err.printf("Unable to connect to the Axis Video Server: %s\n", e1);
+            System.err.printf("Unable to start video source: %s\n", e1);
             System.exit(2);
         }
     }
 
     /**
-     * Creates the appropriate video source for video display.
-     * 
-     * @param config
-     * @return
-     * @throws CameraException
+     * Sets up a simulated beam overlay. Waits for the first video frame on a
+     * background thread to get the source dimensions, then draws a small
+     * circle centered on the video.
      */
-    private static VideoSource configCamera(Config config) throws CameraException {
-        if (config.isVideoCapture()) {
-            return new CaptureVideoSource(config);
-        }
-        return new AxisVideoSource(config);
+    private static void setupSimulatedBeam(MainFrame frame, VideoSource videoSource) {
+        new Thread(() -> {
+            try {
+                Image img = null;
+                for (int i = 0; i < 50; i++) {
+                    img = videoSource.getImage();
+                    if (img != null && img.getWidth(null) > 0) break;
+                    Thread.sleep(100);
+                }
+                final double srcWidth = (img != null && img.getWidth(null) > 0)
+                        ? img.getWidth(null) : 704.0;
+                final double srcHeight = (img != null && img.getHeight(null) > 0)
+                        ? img.getHeight(null) : 480.0;
+                double radius = 0.03;
+                double beamW = radius * srcHeight / srcWidth;
+                VideoWidget vw = frame.mCrystalCenteringPanel.getVideoWidget();
+                System.out.printf("VideoWidget: %dx%d, source: %.0fx%.0f, beamW=%.4f, beamH=%.4f%n",
+                        vw.getSize().width, vw.getSize().height,
+                        srcWidth, srcHeight, beamW, radius);
+                SwingUtilities.invokeLater(() -> {
+                    vw.setShape("ellipse");
+                    vw.setSize(beamW, radius);
+                    vw.setCircle(0.5, 0.5);
+                });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "SimBeamSetup").start();
     }
 
-    /**
-     * Parses the command line arguments into a Config object that will be used
-     * by the rest of the program.
-     * 
-     * @param args
-     *        the command line arguments as they were passed into main.
-     */
-    private static Config parseArgs(String[] args) {
-        String hostname = "axis";
-        String port = "80";
-        String camera = "4";
-        String dcsshostname = "dcss";
-        String dcssport = "14000";
-        boolean videoCapture = false;
-        boolean emulate = false;
-        Object interpHint = null;
-        float framesPerSecond = (float) 24.0;
+    private static void listAllV4L2Uris() throws IOException {
 
-        for (int index = 0; index < args.length; index++) {
-            if (args[index].equals("-h")) {
-                hostname = args[++index];
-            } else if (args[index].equals("-p")) {
-                port = args[++index];
-            } else if (args[index].equals("-c")) {
-                camera = args[++index];
-            } else if (args[index].equals("-d")) {
-                dcsshostname = args[++index];
-            } else if (args[index].equals("-r")) {
-                dcssport = args[++index];
-            } else if (args[index].equals("-v")) {
-                videoCapture = true;
-            } else if (args[index].equals("-e")) {
-                emulate = true;
-            } else if (args[index].equals("-f")) {
-                try {
-                    framesPerSecond = Float.parseFloat(args[++index]);
-                } catch (NumberFormatException ignore) {
-                    // Ignore;
-                }
-            } else if (args[index].equals("-i")) {
-                String s = args[++index];
-                if ("nearest".equalsIgnoreCase(s)) {
-                    interpHint = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
-                } else if ("bilinear".equalsIgnoreCase(s)) {
-                    interpHint = RenderingHints.VALUE_INTERPOLATION_BILINEAR;
-                } else if ("bicubic".equalsIgnoreCase(s)) {
-                    interpHint = RenderingHints.VALUE_INTERPOLATION_BICUBIC;
-                }
-            } else {
-                System.err.printf("Unknown option: %s\n", args[index]);
-                System.err.println("Valid options:");
-                System.err
-                        .println("   -h hostname        the Axis server name. (defaults to localhost)");
-                System.err
-                        .println("   -p port            the Axis server port. (defaults to 80)");
-                System.err
-                        .println("   -d dcsshostname    the DCSS touch server name. (defaults to dcss)");
-                System.err
-                        .println("   -r dcssport        the DCSS touch server port. (defaults to 14000)");
-                System.err
-                        .println("   -c camera          the camera stream number to display. (defaults to 4)");
-                System.err
-                        .println("   -v                 causes the internal video capture system to be used.");
-                System.err
-                        .println("   -e                 emulate old-style touch coordinates for output.");
-                System.err
-                        .println("   -i hint            image interpolation. (can be 'nearest', 'bilinear', or 'bicubic').");
-                System.err
-                        .println("   -f frames per sec  capture device frame rate. (can be 15.0, 24.0, or 30.0).");
+        List<String> uris = new ArrayList<>();
 
-                System.exit(1);
-            }
+        CameraEnumerator ce = new CameraEnumerator();
+        Collection<String> devices = ce.getVideoDevices();
+        for (String device : devices) {
+            uris.addAll(ce.getV4L2Uris(device));
         }
 
-        return new Config(dcsshostname, dcssport, hostname, port, camera, videoCapture,
-                emulate, interpHint, framesPerSecond);
+        if (uris.isEmpty()) {
+            System.out.println("There are no available video capture devices");
+        } else {
+            uris.forEach(u -> System.out.println(u));
+        }
     }
 }

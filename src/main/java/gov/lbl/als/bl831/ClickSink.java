@@ -36,8 +36,31 @@ public interface ClickSink {
     void videoClicked(double x, double y, double heightOverWidth);
 
     /**
+     * Sends a raw command string to the touch server. Used for custom
+     * button command overrides.
+     *
+     * @param command
+     *        the command string to send.
+     */
+    void sendCommand(String command);
+
+    /**
      * let the server know the client is still there.
      */
     void heartbeat();
+
+    /**
+     * Creates a no-op ClickSink that discards all events. Used in dev-offline
+     * mode when there is no DCSS connection.
+     */
+    static ClickSink noOp() {
+        return new ClickSink() {
+            @Override public void buttonPressed(VirtualButton button) {}
+            @Override public void sendCommand(String command) {}
+            @Override public void lightSlideClicked(double value) {}
+            @Override public void videoClicked(double x, double y, double heightOverWidth) {}
+            @Override public void heartbeat() {}
+        };
+    }
 
 }

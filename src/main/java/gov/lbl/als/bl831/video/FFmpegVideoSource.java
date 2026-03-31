@@ -1,0 +1,539 @@
+package gov.lbl.als.bl831.video;
+
+import java.awt.Image;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+
+import javax.swing.SwingUtilities;
+
+import org.bytedeco.ffmpeg.avutil.AVFrame;
+import org.bytedeco.ffmpeg.swscale.SwsContext;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacv.FFmpegFrameGrabber;
+import org.bytedeco.javacv.Frame;
+import org.bytedeco.javacv.Java2DFrameConverter;
+import org.bytedeco.javacv.FrameGrabber.ImageMode;
+
+import gov.lbl.als.bl831.AxisUriParser;
+import gov.lbl.als.bl831.V4L2UriParser;
+import gov.lbl.als.bl831.V4L2UriParser.V4L2UriComponents;
+import gov.lbl.als.bl831.VideoSource;
+import io.tetrah.camerainfo.v4l2.V4L2CameraInfo;
+import io.tetrah.camerainfo.v4l2.ioctl.V4L2Ioctl;
+import willibert.NetCamLib.CameraException;
+
+import static org.bytedeco.ffmpeg.global.avutil.*;
+import static org.bytedeco.ffmpeg.global.swscale.*;
+
+/**
+ * Video source implementation using ByteDeco (JavaCV) for capturing video frames
+ * from a V4L2 device or an HTTP MJPEG stream using FFmpeg.
+ */
+public class FFmpegVideoSource implements VideoSource {
+
+    private final Java2DFrameConverter converter = new Java2DFrameConverter();
+
+    private  ActionListener listener = null;
+
+    private VideoCaptureThread              mCaptureThread;
+
+    /**
+     * Creates an FFmpegVideoSource from a video URI string. Handles both
+     * axis:// and v4l2:// URI schemes.
+     *
+     * @param videoUri
+     *        the video source URI.
+     * @return the configured video source.
+     * @throws CameraException
+     *         if the URI scheme is unknown or the source could not be created.
+     */
+    public static FFmpegVideoSource fromUri(String videoUri) throws CameraException {
+        if (videoUri.startsWith("axis://")) {
+            return new FFmpegVideoSource(AxisUriParser.toHttpUri(videoUri));
+        }
+
+        if (videoUri.startsWith("v4l2://")) {
+            try {
+                V4L2UriComponents c = V4L2UriParser.parseUri(videoUri);
+                return new FFmpegVideoSource("/dev/" + c.getDevice(),
+                        c.getPixelFormat(), c.getWidth(), c.getHeight(),
+                        (int) c.getFps());
+            } catch (IllegalArgumentException ex) {
+                throw new CameraException("'" + videoUri
+                        + "' could not be created. " + ex.getMessage());
+            }
+        }
+
+        throw new CameraException("Unknown video URI scheme: " + videoUri
+                + "\nSupported schemes: axis://, v4l2://");
+    }
+
+    /**
+     * Constructor for V4L2 device capture.
+     *
+     * @param device The video device to capture from
+     * @param fourccPixelFormat The FOURCC pixel format string
+     * @param width The width of the video frames
+     * @param height The height of the video frames
+     * @param fps The frames per second rate
+     */
+    public FFmpegVideoSource(String device, String fourccPixelFormat, int width, int height, int fps) {
+        super();
+        mCaptureThread = new VideoCaptureThread(device, fourccPixelFormat, width, height, fps);
+    }
+
+    /**
+     * Constructor for URL-based MJPEG stream capture (e.g. Axis cameras).
+     *
+     * @param uri The URI of the MJPEG stream
+     */
+    public FFmpegVideoSource(URI uri) {
+        super();
+        mCaptureThread = new VideoCaptureThread(uri, false);
+    }
+
+    /**
+     * Constructor for file-based playback with optional looping.
+     *
+     * @param file The video file to play
+     * @param loop If true, restart playback when end-of-file is reached
+     */
+    public FFmpegVideoSource(File file, boolean loop) {
+        super();
+        mCaptureThread = new VideoCaptureThread(file, loop);
+    }
+
+    /**
+     * Thread class responsible for capturing video frames.
+     */
+    private class VideoCaptureThread extends Thread {
+        private volatile boolean running = false;
+        private SwsContext context = null;
+
+        private final String source;
+        private final String fourccPixelFormat;
+        private final int width;
+        private final int height;
+        private final int fps;
+        private final boolean isUrl;
+        private final boolean loop;
+        private final File file;
+
+        private Image image;
+
+        private ByteBuffer dstBufferCache = null;
+
+        /**
+         * Constructor for V4L2 device capture.
+         *
+         * @param device The video device to capture from
+         * @param fourccPixelFormat The FOURCC pixel format string
+         * @param width The width of the video frames
+         * @param height The height of the video frames
+         * @param fps The frames per second rate
+         */
+        public VideoCaptureThread(String device, String fourccPixelFormat,
+                                   int width, int height, int fps) {
+            this.source = device;
+            this.fourccPixelFormat = fourccPixelFormat;
+            this.width = width;
+            this.height = height;
+            this.fps = fps;
+            this.isUrl = false;
+            this.loop = false;
+            this.file = null;
+        }
+
+        /**
+         * Constructor for URL-based capture (e.g. Axis HTTP MJPEG streams).
+         *
+         * @param uri  The URI of the MJPEG stream
+         * @param loop If true, restart playback at end-of-file
+         */
+        public VideoCaptureThread(URI uri, boolean loop) {
+            this.source = uri.toString();
+            this.fourccPixelFormat = null;
+            this.width = 0;
+            this.height = 0;
+            this.fps = 0;
+            this.isUrl = true;
+            this.loop = loop;
+            this.file = null;
+        }
+
+        /**
+         * Constructor for file-based playback with optional looping.
+         *
+         * @param file The video file to play
+         * @param loop If true, restart playback at end-of-file
+         */
+        public VideoCaptureThread(File file, boolean loop) {
+            this.source = file.getAbsolutePath();
+            this.fourccPixelFormat = null;
+            this.width = 0;
+            this.height = 0;
+            this.fps = 0;
+            this.isUrl = false;
+            this.loop = loop;
+            this.file = file;
+        }
+
+        /**
+         * Main execution method for the thread.
+         * Starts the video capture process.
+         */
+        @Override
+        public void run() {
+            running = true;
+            try {
+                if (isUrl) {
+                    startUrlCapture(source);
+                } else if (fourccPixelFormat != null || width > 0) {
+                    startDeviceCapture(source, fourccPixelFormat, width, height, fps);
+                } else {
+                    startFileCapture(source);
+                }
+            } catch (IOException e) {
+                System.err.printf("Video capture error: %s%n", e.getMessage());
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        /**
+         * Stops the video capture thread.
+         */
+        public void stopRunning() {
+            running = false;
+        }
+
+        /**
+         * Gets the current image from the video capture thread.
+         *
+         * @return The current BufferedImage, or null if no image is available
+         */
+        public Image getImage() {
+            return image;
+        }
+
+        /**
+         * Starts capture from a URL-based MJPEG stream.
+         *
+         * @param url The URL of the stream
+         * @throws IOException If an I/O error occurs during capture
+         */
+        private void startUrlCapture(String url) throws IOException {
+            do {
+                try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(url)) {
+                    grabber.setOption("fflags", "nobuffer");
+                    grabber.start();
+                    captureLoop(grabber);
+                }
+            } while (loop && running);
+        }
+
+        private void startFileCapture(String path) throws IOException {
+            Java2DFrameConverter fileConverter = new Java2DFrameConverter();
+            do {
+                try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(file)) {
+                    grabber.start();
+                    double fps = grabber.getFrameRate();
+                    long delay = fps > 0 ? (long) (1000.0 / fps) : 40;
+                    Frame f;
+                    while (!Thread.currentThread().isInterrupted()
+                            && running
+                            && (f = grabber.grabImage()) != null) {
+                        BufferedImage img = fileConverter.convert(f);
+                        if (img != null) {
+                            this.image = img;
+                            if (listener != null) {
+                                SwingUtilities.invokeLater(
+                                        () -> listener.actionPerformed(null));
+                            }
+                        }
+                        Thread.sleep(delay);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            } while (loop && running);
+        }
+
+        /**
+         * Starts capture from a V4L2 device with the specified parameters.
+         *
+         * @param device The video device to capture from
+         * @param fourccPixelFormat The FOURCC pixel format string
+         * @param width The width of the video frames
+         * @param height The height of the video frames
+         * @param fps The frames per second rate
+         * @throws IOException If an I/O error occurs during capture
+         */
+        private void startDeviceCapture(String device, String fourccPixelFormat,
+                                         int width, int height, int fps) throws IOException {
+            if (fourccPixelFormat == null) {
+                fourccPixelFormat = askDriverForPixelFormat(device);
+                System.out.printf("No pixel format specified, querying device '%s' returned pixel format '%s'%n", device, fourccPixelFormat);
+            }
+            try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(device)) {
+
+                // Special handling for MJPEG streams. ffmpeg has depricated processing of older MJPEG
+                // streams, so we need to use a workaround. We set the image mode to RAW and then
+                // tell the driver to capture in native MJPEG format without conversion.
+                String avPixFormat = V4L2AVUtils.v4l2PixFmt2AvPixFmtString(fourccPixelFormat);
+                if (avPixFormat == null) {
+                    avPixFormat = V4L2AVUtils.v4l2PixFmt2AvCodecString(fourccPixelFormat);
+                    grabber.setImageMode(ImageMode.RAW);
+                }
+
+                grabber.setOption("pixel_format", avPixFormat);
+                grabber.setImageWidth(width);
+                grabber.setImageHeight(height);
+                grabber.setFrameRate(fps);
+                grabber.setOption("fflags", "nobuffer");
+                grabber.setOption("probesize", "32");
+                grabber.start();
+                captureLoop(grabber);
+            }
+        }
+
+        /**
+         * Shared capture loop for both device and URL sources. Grabs frames,
+         * handles MJPEG conversion, and notifies the listener.
+         *
+         * @param grabber The configured and started frame grabber
+         * @throws IOException If an I/O error occurs during capture
+         */
+        private void captureLoop(FFmpegFrameGrabber grabber) throws IOException {
+            while (!Thread.currentThread().isInterrupted() && running) {
+                // Suppress "deprecated pixel format used" warning from FFmpeg's internal
+                // MJPEG decoder. The warning fires inside grabImage() on every frame because
+                // MJPEG cameras (both Axis and V4L2) send yuvj422p, which FFmpeg deprecated
+                // in favor of yuv422p with a full-range flag. The warning originates from
+                // native swscale code inside FFmpegFrameGrabber, not from our conversion code.
+                //
+                // av_log_set_callback was attempted but crashes (JavaCPP_exception) because
+                // the native callback runs on FFmpeg's thread and can't safely interact with
+                // Java's exception handling. Toggling the log level around the specific call
+                // is the only reliable suppression from Java.
+                //
+                // Alternative: filter stderr in the launcher script (e.g. 2>&1 | grep -v).
+                int logLevel = av_log_get_level();
+                av_log_set_level(AV_LOG_ERROR);
+                Frame f = grabber.grabImage();
+                av_log_set_level(logLevel);
+                if (f == null)
+                    break;
+
+                // Special handling for MJPEG frames.
+                f = swsScaleMjpegToBgr24Frame(f);
+                BufferedImage img = converter.convert(f);
+                f.close();
+                if (img != null) {
+                    this.image = img;
+                    if (listener != null) {
+                        SwingUtilities.invokeLater(() -> listener.actionPerformed(null));
+                    }
+                }
+            }
+        }
+
+        private String askDriverForPixelFormat(String device) {
+            String fourcc = null;
+            try {
+                fourcc = (new V4L2CameraInfo().getPixelFormats(device, V4L2Ioctl.V4L2_BUF_TYPE_VIDEO_CAPTURE))
+                   .stream().findFirst().map(f -> f.getFourcc()).orElse(null);
+            } catch (IOException e) {
+            }
+            return fourcc;
+        }
+
+        /**
+         * Scales MJPEG frame to BGR24 format.
+         *
+         * @param frame The input frame to convert
+         * @return The converted frame in BGR24 format
+         */
+        private Frame swsScaleMjpegToBgr24Frame(Frame frame) {
+            if (frame.opaque instanceof AVFrame) {
+                AVFrame avf = (AVFrame) frame.opaque;
+                int srcFmt = avf.format();
+                // Normalize deprecated YUVJ* to corresponding YUV* while preserving full-range
+                // via colorspace details
+                switch (srcFmt) {
+                    case AV_PIX_FMT_YUVJ420P:
+                        srcFmt = AV_PIX_FMT_YUV420P;
+                        break;
+                    case AV_PIX_FMT_YUVJ422P:
+                        srcFmt = AV_PIX_FMT_YUV422P;
+                        break;
+                    case AV_PIX_FMT_YUVJ444P:
+                        srcFmt = AV_PIX_FMT_YUV444P;
+                        break;
+                    case AV_PIX_FMT_YUVJ440P:
+                        srcFmt = AV_PIX_FMT_YUV440P;
+                        break;
+                    default:
+                        break;
+                }
+
+                // Do the conversion if the format has changed, otherwise return the original
+                // frame.
+                if (avf.format() != srcFmt) {
+                    Frame convertedFrame = swsScaleToBgr24Frame(avf, srcFmt);
+                    frame.close();
+                    frame = convertedFrame;
+                }
+            }
+            return frame;
+        }
+
+        /**
+         * Performs the actual scaling from MJPEG to BGR24 format.
+         *
+         * @param src The source AVFrame
+         * @param srcFmt The source pixel format
+         * @return The scaled frame in BGR24 format
+         */
+        private Frame swsScaleToBgr24Frame(AVFrame src, int srcFmt) {
+            int w = src.width();
+            int h = src.height();
+
+            int dstFmt = AV_PIX_FMT_BGR24;
+
+            // 1) Get or create scaler context (check for null)
+            context = sws_getCachedContext(
+                    context,
+                    w, h, srcFmt,
+                    w, h, dstFmt,
+                    SWS_BILINEAR,
+                    null, null, (double[]) null);
+            if (context == null) {
+                throw new RuntimeException("sws_getCachedContext returned null");
+            }
+
+            // 2) Full-range + BT.601 coefficients; use correct IntPointer overloads
+            // For SD content, ITU-601 (bt470bg) is typical for MJPEG; change to
+            // SWS_CS_DEFAULT or SWS_CS_ITU709 if appropriate.
+            int cs = SWS_CS_ITU601;
+            IntPointer inv = sws_getCoefficients(cs);
+            IntPointer tab = sws_getCoefficients(cs);
+
+            int srcRange = 1; // full range for YUVJ input
+            int dstRange = 1; // keep full range output (common for UI processing)
+            int brightness = 0;
+            int contrast = 1 << 16; // unity in swscale fixed-point
+            int saturation = 1 << 16; // unity in swscale fixed-point
+
+            // Set colorspace/range; ignore return code < 0 only if library too old, but
+            // typically this succeeds
+            sws_setColorspaceDetails(context, inv, srcRange, tab, dstRange, brightness, contrast, saturation);
+
+            // 3) Allocate destination AVFrame and buffer properly
+            AVFrame dst = av_frame_alloc();
+            if (dst == null) {
+                throw new RuntimeException("av_frame_alloc failed");
+            }
+            dst.format(dstFmt);
+            dst.width(w);
+            dst.height(h);
+
+            // Compute buffer size and allocate a direct buffer
+            int bufSize = av_image_get_buffer_size(dstFmt, w, h, 1);
+            if (bufSize < 0) {
+                av_frame_free(dst);
+                throw new RuntimeException("av_image_get_buffer_size failed");
+            }
+            if (dstBufferCache == null || dstBufferCache.capacity() != bufSize) {
+                dstBufferCache = ByteBuffer.allocateDirect(bufSize);
+            } else {
+                dstBufferCache.clear();
+            }
+            ByteBuffer dstBuf = dstBufferCache;
+
+            // Fill dst->data/linesize to point into dstBuf
+            // Use a BytePointer on the direct buffer; do not use Pointer.pointerToBuffer()
+            // for FFmpeg image fill
+            BytePointer dstPtr = new BytePointer(dstBuf);
+            int ret = av_image_fill_arrays(
+                    dst.data(), dst.linesize(),
+                    dstPtr,
+                    dstFmt, w, h, 1);
+            if (ret < 0) {
+                av_frame_free(dst);
+                throw new RuntimeException("av_image_fill_arrays failed: " + ret);
+            }
+
+            // 4) Scale from YUV -> BGR24
+            int scaled = sws_scale(context, src.data(), src.linesize(), 0, h, dst.data(), dst.linesize());
+            if (scaled != h) {
+                av_frame_free(dst);
+                throw new RuntimeException("sws_scale returned " + scaled + " (expected " + h + ")");
+            }
+
+            // 5) Wrap into a JavaCV Frame (BGR24, 3 channels)
+            Frame out = new Frame(w, h, Frame.DEPTH_UBYTE, 3);
+            out.imageStride = dst.linesize(0);
+            out.createIndexer();
+
+            ByteBuffer outBuf = (ByteBuffer) out.image[0];
+            dstBuf.position(0).limit(bufSize);
+            outBuf.position(0).limit(bufSize);
+            outBuf.put(dstBuf);
+            outBuf.flip();
+
+            // 6) Cleanup native AVFrame structure (not the Java ByteBuffer)
+            // av_frame_free frees only the AVFrame struct here (no av_malloc buffer was
+            // tied to data[0]).
+            av_frame_free(dst);
+
+            return out;
+        }
+
+    }
+
+    /**
+     * Starts the video capture thread.
+     *
+     * @throws IOException If an I/O error occurs during capture
+     */
+    @Override
+    public void start() throws IOException {
+        mCaptureThread.start();
+    }
+
+    /**
+     * Stops the video capture thread.
+     *
+     * @throws IOException If an I/O error occurs during capture
+     */
+    @Override
+    public void stop() throws IOException {
+        mCaptureThread.stopRunning();
+    }
+
+    /**
+     * Gets the current image from the video capture.
+     *
+     * @return The current BufferedImage, or null if no image is available
+     */
+    @Override
+    public Image getImage() {
+        return mCaptureThread.getImage();
+    }
+
+    /**
+     * Adds an action listener to be notified when new frames are available.
+     *
+     * @param listener The ActionListener to add
+     */
+    @Override
+    public void addActionListener(ActionListener listener) {
+        this.listener = listener;
+    }
+}

@@ -1,8 +1,13 @@
-# Compiled class file
+# Maven
 target/
+dependency-reduced-pom.xml
 
 #VSCode
 .vscode/
+.continue/
+
+# OMC
+.omc/
 
 # Log file
 *.log
@@ -15,6 +20,7 @@ target/
 
 # Package Files #
 *.jar
+!lib/*.jar
 *.war
 *.nar
 *.ear

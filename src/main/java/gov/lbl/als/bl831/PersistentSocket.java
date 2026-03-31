@@ -34,7 +34,7 @@ public class PersistentSocket {
     private void connect() {
         mSocket = new Socket();
         try {
-            System.out.printf("Connecting to dcss %s.\n", mAddress.toString());
+            System.out.printf("Connecting to touch server %s.\n", mAddress.toString());
             mSocket.connect(mAddress, mTimeout);
             mInput = mSocket.getInputStream();
             mOutput = mSocket.getOutputStream();
