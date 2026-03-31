@@ -41,10 +41,10 @@
             <fileMode>0755</fileMode>
         </fileSet>
 
-        <!-- utils/etc (config) -->
+        <!-- Example themes -->
         <fileSet>
-            <directory>${project.basedir}/src/main/distribution/utils/etc</directory>
-            <outputDirectory>etc</outputDirectory>
+            <directory>${project.basedir}/examples</directory>
+            <outputDirectory>examples</outputDirectory>
             <includes>
                 <include>**/*</include>
             </includes>
