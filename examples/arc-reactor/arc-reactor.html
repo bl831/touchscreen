@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARC // Crystallographic Analysis System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* ── ARMOR INTERIOR PALETTE ── */
+    --bg:       #1c1c20;
+    --panel:    #252529;
+    --metal-hi: #3a3a42;
+    --metal:    #2e2e34;
+    --metal-lo: #1a1a1e;
+    --metal-dk: #141416;
+    --gold:     #c49a1a;
+    --gold-dk:  #8a6c10;
+    --red:      #aa1818;
+    --red-lt:   #cc2222;
+    --blue:     #3a8ab0;
+    --blue-lt:  #5aaad0;
+    --text:     #d0ccc0;
+    --text-dim: #7a7872;
+    --rivet:    #444448;
+    --seam:     #111113;
+
+    /* ── LOCKED LAYOUT ── */
+    --panel-w: 9.74vw;
+    --panel-gap: 1.6vw;
+    --btn-h: 8.98vh;
+    --btn-gap: 1.0vh;
+    --btn-fs: clamp(10px, 1.1vw, 20px);
+    --btn-h-left: 6.48vh;
+    --btn-gap-left: 0.4vh;
+    --nav-w: 3.39vw;
+    --nav-h: 6.02vh;
+    --tilt-h: 6.02vh;
+    --light-h: 25.65vh;
+    --pin-h: 6.94vh;
+    --pin-w: 8.39vw;
+    --font-hud: 'Chakra Petch', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: var(--font-hud);
+    color: var(--text);
+  }
+
+  /* ══════════════ FRAME — armor hull ══════════════ */
+  .frame {
+    position: relative;
+    width: 100vw; height: 100vh;
+    background:
+      linear-gradient(180deg, #222226 0%, #1a1a1e 30%, #18181c 70%, #141416 100%);
+    display: flex;
+    flex-direction: column;
+  }
+  /* Brushed aluminum texture */
+  .frame::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 1px,
+        transparent 1px, transparent 3px
+      );
+    pointer-events: none; z-index: 50;
+  }
+  /* Thick machined border — inset bevel */
+  .frame::before {
+    content: '';
+    position: absolute; inset: 0;
+    border: 4px solid var(--metal);
+    box-shadow:
+      inset 0 0 0 1px var(--seam),
+      inset 0 0 0 3px var(--metal-hi),
+      inset 0 0 0 4px var(--seam),
+      0 0 0 1px #000;
+    pointer-events: none; z-index: 100;
+  }
+
+  /* Corner bolts */
+  .corner {
+    position: absolute; width: 18px; height: 18px; z-index: 101; pointer-events: none;
+    background: radial-gradient(circle at 40% 35%, var(--metal-hi), var(--metal-lo));
+    border-radius: 50%;
+    border: 2px solid var(--seam);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 1px 3px rgba(0,0,0,0.5);
+  }
+  .corner::before {
+    content: ''; position: absolute;
+    top: 50%; left: 50%; width: 8px; height: 2px;
+    transform: translate(-50%,-50%) rotate(30deg);
+    background: var(--seam); border-radius: 1px;
+  }
+  .corner::after {
+    content: ''; position: absolute;
+    top: 50%; left: 50%; width: 2px; height: 8px;
+    transform: translate(-50%,-50%) rotate(30deg);
+    background: var(--seam); border-radius: 1px;
+  }
+  .corner.tl { top: 8px; left: 8px; }
+  .corner.tr { top: 8px; right: 8px; }
+  .corner.bl { bottom: 8px; left: 8px; }
+  .corner.br { bottom: 8px; right: 8px; }
+
+  /* ══════════════ PIN STRIP ══════════════ */
+  .pin-strip {
+    height: var(--pin-h);
+    display: flex; align-items: center; justify-content: center;
+    gap: 1.5vw; padding: 1.2vh 13vw 0;
+    flex-shrink: 0;
+  }
+  .pin-widget {
+    flex: 1; max-width: var(--pin-w);
+    height: calc(var(--pin-h) - 0.8vh);
+    border: none; background: transparent;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; position: relative; padding: 2px 4px;
+  }
+  .pin-widget svg.pin-drawing { width: 100%; flex: 1; position: relative; z-index: 2; }
+  .pin-widget svg.pin-border { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .pin-label {
+    font-size: 12px;
+    font-family: var(--font-hud); font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.1em; line-height: 1;
+    position: relative; z-index: 2; margin-bottom: 4px;
+  }
+
+  /* ══════════════ LAYOUT ══════════════ */
+  .main-row { flex: 1; display: flex; min-height: 0; }
+  .side-panel {
+    width: calc(var(--panel-w) + var(--panel-gap) * 2);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 0 var(--panel-gap);
+    position: relative; flex-shrink: 0;
+  }
+  .btn-group {
+    display: flex; flex-direction: column;
+    align-items: center; gap: var(--btn-gap); width: 100%;
+  }
+  .side-panel.left .btn-group { gap: var(--btn-gap-left); }
+  .side-panel.left .hud-btn { height: var(--btn-h-left); }
+
+  /* ══════════════ HUD BUTTONS ══════════════ */
+  .hud-btn {
+    position: relative;
+    width: var(--panel-w); height: var(--btn-h);
+    background: transparent; border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-hud); font-weight: 700;
+    letter-spacing: 0.08em; color: var(--text);
+    flex-shrink: 0;
+  }
+  .hud-btn:focus, .arrow-btn:focus, .pin-widget:focus, .light-box:focus,
+  .hud-btn:focus-visible, .arrow-btn:focus-visible, .pin-widget:focus-visible, .light-box:focus-visible {
+    outline: none !important; box-shadow: none !important;
+  }
+  .hud-btn svg.btn-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; overflow: visible;
+  }
+  .hud-btn .btn-label {
+    position: relative; z-index: 2; pointer-events: none;
+    display: flex; align-items: center; gap: 0.3vw;
+  }
+  .hud-btn .btn-icon {
+    position: relative; z-index: 2; pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  /* ══════════════ ARROW BUTTONS ══════════════ */
+  .nav-cluster { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nav-mid, .nav-tilt { display: flex; gap: 4px; }
+  .arrow-btn {
+    position: relative;
+    width: var(--nav-w); height: var(--nav-h);
+    background: transparent; border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; overflow: visible;
+  }
+  .arrow-btn svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; overflow: visible;
+  }
+  .tilt-btn { height: var(--tilt-h) !important; }
+
+  /* ══════════════ LIGHT BOX ══════════════ */
+  .light-box {
+    width: var(--panel-w); height: var(--light-h);
+    position: relative; flex-shrink: 0; cursor: pointer;
+  }
+  .light-box svg.lb-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .light-label {
+    position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-hud); font-weight: 700;
+    font-size: 12px; color: var(--text-dim);
+    letter-spacing: 0.15em; z-index: 2; white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+  }
+
+  /* ══════════════ VIDEO AREA ══════════════ */
+  .video-area {
+    flex: 1; position: relative; min-width: 0;
+    display: flex; align-items: stretch; padding: 1.5vh 0 15px 0;
+  }
+  .video-placeholder {
+    flex: 1; position: relative; overflow: hidden;
+    background: #0e0e12;
+  }
+  /* Subtle noise-like dot grid */
+  .video-placeholder::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .video-frame {
+    position: absolute; inset: 0;
+    border: 3px solid var(--metal);
+    box-shadow: inset 0 0 0 1px var(--seam), inset 0 0 30px rgba(0,0,0,0.5);
+    pointer-events: none; z-index: 5;
+  }
+  /* Physical machined corner brackets */
+  .v-corner { position: absolute; width: 2vw; height: 2vw; z-index: 6; pointer-events: none; }
+  .v-corner::before, .v-corner::after { content: ''; position: absolute; background: var(--metal-hi); }
+  .v-corner::before { width: 100%; height: 3px; top: 0; box-shadow: 0 1px 0 rgba(0,0,0,0.4); }
+  .v-corner::after  { width: 3px; height: 100%; top: 0; box-shadow: 1px 0 0 rgba(0,0,0,0.4); }
+  .v-corner.tl { top: -1px; left: -1px; }
+  .v-corner.tr { top: -1px; right: -1px; transform: scaleX(-1); }
+  .v-corner.bl { bottom: -1px; left: -1px; transform: scaleY(-1); }
+  .v-corner.br { bottom: -1px; right: -1px; transform: scale(-1); }
+
+  .feed-label {
+    position: absolute; top: 10px; left: 12px;
+    font-family: var(--font-mono); font-size: clamp(7px, 0.55vw, 11px);
+    color: var(--text-dim); opacity: 0.5; z-index: 7; letter-spacing: 0.12em;
+  }
+  .rec-label {
+    position: absolute; top: 10px; right: 12px;
+    font-family: var(--font-mono); font-size: clamp(7px, 0.55vw, 11px);
+    color: var(--red-lt);
+    z-index: 7; letter-spacing: 0.1em;
+  }
+  .rec-dot { animation: blink 1.2s steps(2) infinite; }
+  @keyframes blink { 0%{opacity:1} 50%{opacity:0} }
+
+  /* Physical reticle — etched crosshair, no glow */
+  .reticle {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 4; pointer-events: none;
+  }
+  .reticle svg { width: 240px; height: 240px; opacity: 0.15; }
+
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent 10%, rgba(196,154,26,0.08) 50%, transparent 90%);
+    animation: scan 6s linear infinite; z-index: 3; pointer-events: none;
+  }
+  @keyframes scan { 0%{top:-1%} 100%{top:101%} }
+
+  /* ══════════════ STATUS BAR ══════════════ */
+  .status-bar {
+    height: 3.2vh; min-height: 22px;
+    display: flex; align-items: center; padding: 0 1.5vw;
+    gap: 2vw; flex-shrink: 0;
+    background: var(--metal-dk);
+    border-top: 1px solid var(--seam);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .status-item {
+    font-family: var(--font-mono); font-size: clamp(7px, 0.5vw, 10px);
+    color: var(--text-dim); opacity: 0.6; letter-spacing: 0.1em; white-space: nowrap;
+  }
+  .status-connected { color: var(--blue-lt); opacity: 1; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <!-- PIN STRIP -->
+  <div class="pin-strip">
+    <div class="pin-widget" data-len="24"><div class="pin-label">24</div></div>
+    <div class="pin-widget" data-len="21"><div class="pin-label">21</div></div>
+    <div class="pin-widget" data-len="20"><div class="pin-label">20</div></div>
+    <div class="pin-widget" data-len="18"><div class="pin-label">18</div></div>
+    <div class="pin-widget" data-len="14"><div class="pin-label">14</div></div>
+    <div class="pin-widget" data-len="12"><div class="pin-label">12</div></div>
+    <div class="pin-widget" data-len="10"><div class="pin-label">10</div></div>
+  </div>
+
+  <div class="main-row">
+    <!-- LEFT PANEL -->
+    <div class="side-panel left">
+      <div class="btn-group">
+        <button class="hud-btn" data-col="gold" data-icon="undo"><span class="btn-label">UNDO</span></button>
+        <button class="hud-btn" data-col="red" data-icon="lock"><span class="btn-label">PARK</span></button>
+        <button class="hud-btn" data-col="blue" data-icon="play"><span class="btn-label">UN-PARK</span></button>
+
+        <div class="light-box" data-col="blue">
+          <span class="light-label">LIGHT</span>
+        </div>
+
+        <button class="hud-btn" data-col="gold" data-icon="lens"><span class="btn-label">POLARIZE</span></button>
+
+        <div class="nav-cluster">
+          <button class="arrow-btn" data-col="red" data-arrow="50,18 82,80 18,80"></button>
+          <div class="nav-mid">
+            <button class="arrow-btn" data-col="red" data-arrow="18,50 80,18 80,82"></button>
+            <button class="arrow-btn" data-col="red" data-arrow="82,50 20,18 20,82"></button>
+          </div>
+          <button class="arrow-btn" data-col="red" data-arrow="50,82 82,20 18,20"></button>
+          <div class="nav-tilt">
+            <button class="arrow-btn tilt-btn" data-col="blue" data-arrow="50,18 82,80 18,80"></button>
+            <button class="arrow-btn tilt-btn" data-col="blue" data-arrow="50,82 82,20 18,20"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEO AREA -->
+    <div class="video-area">
+      <div class="video-placeholder">
+        <div class="video-frame"></div>
+        <div class="v-corner tl"></div><div class="v-corner tr"></div>
+        <div class="v-corner bl"></div><div class="v-corner br"></div>
+        <div class="feed-label">SPECIMEN FEED  //  LIVE</div>
+        <div class="rec-label"><span class="rec-dot">●</span> REC</div>
+        <div class="scan-line"></div>
+        <div class="reticle">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <!-- Etched concentric rings -->
+            <circle cx="100" cy="100" r="85" fill="none" stroke="#555" stroke-width="0.8"/>
+            <circle cx="100" cy="100" r="50" fill="none" stroke="#555" stroke-width="1"/>
+            <circle cx="100" cy="100" r="15" fill="none" stroke="#555" stroke-width="0.6"/>
+            <!-- Crosshairs -->
+            <line x1="100" y1="10" x2="100" y2="45" stroke="#666" stroke-width="0.8"/>
+            <line x1="100" y1="155" x2="100" y2="190" stroke="#666" stroke-width="0.8"/>
+            <line x1="10" y1="100" x2="45" y2="100" stroke="#666" stroke-width="0.8"/>
+            <line x1="155" y1="100" x2="190" y2="100" stroke="#666" stroke-width="0.8"/>
+            <!-- Tick marks at 45 degrees -->
+            <line x1="137" y1="37" x2="142" y2="42" stroke="#555" stroke-width="0.6"/>
+            <line x1="63" y1="37" x2="58" y2="42" stroke="#555" stroke-width="0.6"/>
+            <line x1="137" y1="163" x2="142" y2="158" stroke="#555" stroke-width="0.6"/>
+            <line x1="63" y1="163" x2="58" y2="158" stroke="#555" stroke-width="0.6"/>
+          </svg>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.03;font-size:clamp(14px,1.4vw,26px);letter-spacing:0.35em;font-family:var(--font-hud);font-weight:700;color:#888;">STARK INDUSTRIES</div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="side-panel right">
+      <div class="btn-group">
+        <button class="hud-btn" data-col="gold" data-icon="zoomin"><span class="btn-label">HI MAG</span></button>
+        <button class="hud-btn btn-num" data-col="red"><span class="btn-label">+10</span></button>
+        <button class="hud-btn btn-num" data-col="gold"><span class="btn-label">+90</span></button>
+        <button class="hud-btn btn-num" data-col="blue"><span class="btn-label">180</span></button>
+        <button class="hud-btn btn-num" data-col="gold"><span class="btn-label">-90</span></button>
+        <button class="hud-btn btn-num" data-col="red"><span class="btn-label">-10</span></button>
+        <button class="hud-btn" data-col="red" data-icon="zoomout"><span class="btn-label">LO MAG</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span class="status-item">SYS NOMINAL</span>
+    <span class="status-item">MAG 20.0x</span>
+    <span class="status-item">ROT 000&deg;</span>
+    <span class="status-connected status-item">● ARC LINK</span>
+    <span class="status-item">TEMP 21.3&deg;C</span>
+    <span class="status-item">FPS 60</span>
+  </div>
+</div>
+
+<script>
+// Color map — physical paint/anodize colors, no glows
+const C = {
+  gold: { face: '#8a7020', hi: '#a8882e', lo: '#6a5418', edge: '#554410', text: '#d4c080', accent: '#c49a1a' },
+  red:  { face: '#7a1818', hi: '#922222', lo: '#5a1010', edge: '#3a0808', text: '#e8a0a0', accent: '#cc2222' },
+  blue: { face: '#1e4a68', hi: '#28608a', lo: '#143a52', edge: '#0c2838', text: '#90c8e0', accent: '#3a8ab0' },
+};
+
+const uid = (p='x') => p + Math.random().toString(36).slice(2,8);
+
+// Icon SVGs (viewBox 0 0 20 20)
+const ICONS = {
+  undo:    `<path d="M7 5L3 9l4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 9h11a4 4 0 010 8h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
+  lock:    `<rect x="5" y="9" width="10" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M7 9V6a3 3 0 016 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="10" cy="13.5" r="1.3" fill="currentColor"/>`,
+  play:    `<polygon points="6,3 17,10 6,17" fill="currentColor"/>`,
+  lens:    `<circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+            <circle cx="10" cy="10" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="10" y1="3.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="10" y1="14.5" x2="10" y2="16.5" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="3.5" y1="10" x2="5.5" y2="10" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="14.5" y1="10" x2="16.5" y2="10" stroke="currentColor" stroke-width="1.2"/>`,
+  zoomin:  `<circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/>
+            <line x1="13" y1="13" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="6" y1="8.5" x2="11" y2="8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="8.5" y1="6" x2="8.5" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`,
+  zoomout: `<circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/>
+            <line x1="13" y1="13" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="6" y1="8.5" x2="11" y2="8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`,
+};
+
+// ═══════════════════════════════════════════════
+//  PIN WIDGETS — machined steel slots
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.pin-widget').forEach(pw => {
+  const len = parseInt(pw.dataset.len) || 10;
+  // Needle
+  const nSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  const cy = 25, baseW = 10, baseH = 16, coneW = 10, coneTipH = 1.5;
+  const needleLen = (len / 24) * 50;
+  const totalW = needleLen + coneW + baseW, viewW = totalW + 20;
+  const sx = (viewW - totalW) / 2;
+  const nX1 = sx, nX2 = sx + needleLen, cX2 = nX2 + coneW;
+  nSvg.setAttribute('viewBox', `0 0 ${viewW} 50`);
+  nSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  nSvg.innerHTML = `
+    <line x1="${nX1}" y1="${cy}" x2="${nX2}" y2="${cy}" stroke="#999" stroke-width="2"/>
+    <polygon points="${nX2},${cy-coneTipH} ${cX2},${cy-baseH/2} ${cX2},${cy+baseH/2} ${nX2},${cy+coneTipH}"
+      fill="#555" stroke="#777" stroke-width="1"/>
+    <rect x="${cX2}" y="${cy-baseH/2}" width="${baseW}" height="${baseH}"
+      fill="#444" stroke="#666" stroke-width="1"/>`;
+  nSvg.classList.add('pin-drawing');
+  pw.insertBefore(nSvg, pw.firstChild);
+
+  // Border — milled aluminum slot
+  const id = uid('pb');
+  const bSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  bSvg.classList.add('pin-border');
+  bSvg.setAttribute('preserveAspectRatio','none');
+  bSvg.setAttribute('viewBox','0 0 100 100');
+  bSvg.innerHTML = `
+    <defs>
+      <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2a2a2e"/><stop offset="100%" stop-color="#1e1e22"/>
+      </linearGradient>
+    </defs>
+    <!-- Recessed groove -->
+    <rect x="2" y="2" width="96" height="96" rx="4"
+      fill="#111" stroke="#0a0a0a" stroke-width="1"/>
+    <!-- Raised face -->
+    <rect x="4" y="4" width="92" height="92" rx="3" fill="url(#f${id})"/>
+    <!-- Top bevel -->
+    <line x1="8" y1="5" x2="92" y2="5" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <!-- Bottom shadow -->
+    <line x1="8" y1="95" x2="92" y2="95" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+    <!-- Edge -->
+    <rect x="4" y="4" width="92" height="92" rx="3"
+      fill="none" stroke="#3a3a3e" stroke-width="1"/>`;
+  pw.insertBefore(bSvg, pw.firstChild);
+});
+
+// ═══════════════════════════════════════════════
+//  HUD BUTTONS — heavy stamped-metal with bevel
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.hud-btn').forEach(btn => {
+  const ck  = btn.dataset.col || 'gold';
+  const c   = C[ck] || C.gold;
+  const iconK = btn.dataset.icon;
+  const id  = uid('b');
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('class','btn-svg');
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.setAttribute('viewBox','0 0 100 100');
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${c.hi}"/>
+        <stop offset="50%" stop-color="${c.face}"/>
+        <stop offset="100%" stop-color="${c.lo}"/>
+      </linearGradient>
+    </defs>
+    <!-- Drop shadow / recess -->
+    <rect x="2" y="3" width="96" height="96" rx="6" fill="rgba(0,0,0,0.4)"/>
+    <!-- Button body -->
+    <rect x="2" y="2" width="96" height="95" rx="6" fill="url(#f${id})"/>
+    <!-- Top highlight bevel -->
+    <rect x="4" y="3" width="92" height="46" rx="5"
+      fill="rgba(255,255,255,0.06)"/>
+    <!-- Bottom edge darken -->
+    <rect x="4" y="50" width="92" height="46" rx="5"
+      fill="rgba(0,0,0,0.1)"/>
+    <!-- Outer edge -->
+    <rect x="2" y="2" width="96" height="95" rx="6"
+      fill="none" stroke="${c.edge}" stroke-width="1.5"/>
+    <!-- Inner highlight line -->
+    <line x1="10" y1="4" x2="90" y2="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-linecap="round"/>`;
+  btn.insertBefore(svg, btn.firstChild);
+
+  // Icon
+  if (iconK && ICONS[iconK]) {
+    const iSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    iSvg.setAttribute('viewBox','0 0 20 20');
+    iSvg.setAttribute('class','btn-icon');
+    iSvg.style.cssText = `width:1.1vw;height:1.1vw;min-width:13px;min-height:13px;color:${c.text};opacity:0.7;`;
+    iSvg.innerHTML = ICONS[iconK];
+    btn.querySelector('.btn-label').insertBefore(iSvg, btn.querySelector('.btn-label').firstChild);
+  }
+
+  const lbl = btn.querySelector('.btn-label');
+  const isNum = btn.classList.contains('btn-num');
+  lbl.style.cssText = `
+    color:${c.text};
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 -1px 0 rgba(255,255,255,0.05);
+    font-size:${isNum ? 'clamp(14px,1.5vw,28px)' : 'var(--btn-fs)'};
+    font-weight:700; letter-spacing:0.08em;
+    display:flex; align-items:center; gap:0.3vw;`;
+});
+
+// ═══════════════════════════════════════════════
+//  ARROW BUTTONS — round metal pucks
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.arrow-btn').forEach(btn => {
+  const ck = btn.dataset.col || 'red';
+  const c  = C[ck] || C.red;
+  const arrowPts = btn.dataset.arrow || '50,18 82,80 18,80';
+  const id = uid('a');
+
+  // Scale arrow points inward toward center so they fit inside the circle
+  const shrink = (pts, factor=0.55) => {
+    return pts.split(' ').map(p => {
+      const [x,y] = p.split(',').map(Number);
+      return `${50 + (x - 50) * factor},${50 + (y - 50) * factor}`;
+    }).join(' ');
+  };
+  const smallArrow = shrink(arrowPts);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.setAttribute('viewBox','0 0 100 100');
+  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;';
+  svg.innerHTML = `
+    <defs>
+      <radialGradient id="f${id}" cx="40%" cy="35%" r="65%">
+        <stop offset="0%" stop-color="${c.hi}"/>
+        <stop offset="100%" stop-color="${c.lo}"/>
+      </radialGradient>
+    </defs>
+    <!-- Shadow -->
+    <ellipse cx="50" cy="53" rx="46" ry="46" fill="rgba(0,0,0,0.35)"/>
+    <!-- Body -->
+    <circle cx="50" cy="50" r="46" fill="url(#f${id})"/>
+    <!-- Top specular -->
+    <ellipse cx="50" cy="38" rx="32" ry="18" fill="rgba(255,255,255,0.06)"/>
+    <!-- Edge -->
+    <circle cx="50" cy="50" r="46" fill="none" stroke="${c.edge}" stroke-width="1.5"/>
+    <!-- Arrow — stamped/embossed, scaled down -->
+    <polygon points="${smallArrow}" fill="${c.text}" opacity="0.85"/>
+    <polygon points="${smallArrow}" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>`;
+  btn.appendChild(svg);
+});
+
+// ═══════════════════════════════════════════════
+//  LIGHT BOX — industrial panel with indicator
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.light-box').forEach(lb => {
+  const id = uid('lb');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 100 100');
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.classList.add('lb-svg');
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2a2a30"/>
+        <stop offset="100%" stop-color="#161618"/>
+      </linearGradient>
+      <linearGradient id="tg${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3a8ab0" stop-opacity="0.7"/>
+        <stop offset="50%" stop-color="#1e4a68" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#0c1820" stop-opacity="0.15"/>
+      </linearGradient>
+    </defs>
+    <!-- Recessed housing -->
+    <rect x="1" y="1" width="98" height="98" rx="4" fill="#0c0c0e"/>
+    <!-- Panel face -->
+    <rect x="3" y="3" width="94" height="94" rx="3" fill="url(#f${id})"/>
+    <!-- Indicator triangle — like a physical backlit panel -->
+    <polygon points="16,22 84,22 50,92" fill="url(#tg${id})"/>
+    <polygon points="16,22 84,22 50,92" fill="none" stroke="#28608a" stroke-width="1" opacity="0.5"/>
+    <!-- Panel screws (top corners) -->
+    <circle cx="10" cy="10" r="3" fill="#333" stroke="#222" stroke-width="0.8"/>
+    <line x1="8" y1="10" x2="12" y2="10" stroke="#1a1a1a" stroke-width="1"/>
+    <circle cx="90" cy="10" r="3" fill="#333" stroke="#222" stroke-width="0.8"/>
+    <line x1="88" y1="10" x2="92" y2="10" stroke="#1a1a1a" stroke-width="1"/>
+    <!-- Border -->
+    <rect x="3" y="3" width="94" height="94" rx="3"
+      fill="none" stroke="#3a3a3e" stroke-width="1.2"/>
+    <!-- Top bevel -->
+    <line x1="8" y1="4" x2="92" y2="4" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`;
+  lb.insertBefore(svg, lb.firstChild);
+});
+
+// ═══════════════════════════════════════════════
+//  PRESS STATES — physical push (darken + inset)
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.hud-btn, .arrow-btn, .pin-widget, .light-box').forEach(el => {
+  const press = () => {
+    el.style.filter = 'brightness(0.8)';
+    el.style.transform = 'scale(0.97) translateY(1px)';
+  };
+  const release = () => {
+    el.style.filter = '';
+    el.style.transform = '';
+  };
+  el.addEventListener('mousedown', press);
+  el.addEventListener('mouseup', release);
+  el.addEventListener('mouseleave', release);
+  el.addEventListener('touchstart', press, { passive: true });
+  el.addEventListener('touchend', release);
+  el.addEventListener('touchcancel', release);
+});
+
+document.querySelectorAll('.arrow-btn svg, .hud-btn svg, .light-box svg').forEach(s => {
+  s.style.pointerEvents = 'none';
+});
+</script>
+</body>
+</html>
